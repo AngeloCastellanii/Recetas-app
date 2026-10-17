@@ -69,3 +69,31 @@ export function validateRecipeTitle(value: string): ValidationResult {
 export function isSameTitle(a: string, b: string): boolean {
   return normalizeKey(a) === normalizeKey(b);
 }
+
+export function validateGroupName(value: string): ValidationResult {
+  const name = normalizeText(value);
+  if (name.length < LIMITS.groupName.min) {
+    return {
+      ok: false,
+      error: `El nombre debe tener al menos ${LIMITS.groupName.min} caracteres.`,
+    };
+  }
+  if (name.length > LIMITS.groupName.max) {
+    return {
+      ok: false,
+      error: `El nombre no puede superar ${LIMITS.groupName.max} caracteres.`,
+    };
+  }
+  return { ok: true };
+}
+
+export function validateGroupDescription(value: string): ValidationResult {
+  const description = normalizeText(value);
+  if (description.length > LIMITS.groupDescription.max) {
+    return {
+      ok: false,
+      error: `La descripción no puede superar ${LIMITS.groupDescription.max} caracteres.`,
+    };
+  }
+  return { ok: true };
+}

@@ -13,6 +13,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { AuthProvider, useAuth } from '@/context/auth-context';
+import { DataProvider } from '@/context/data-context';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -60,7 +61,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        <DataProvider>
+          <RootNavigator />
+        </DataProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

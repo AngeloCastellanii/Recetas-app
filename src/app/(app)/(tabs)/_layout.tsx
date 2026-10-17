@@ -53,6 +53,7 @@ export default function TabsLayout() {
         name="groups"
         options={{
           title: 'Grupos',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{

@@ -10,8 +10,11 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="group/new" options={{ title: 'Nuevo grupo' }} />
+      <Stack.Screen name="group/[id]" options={{ title: 'Grupo' }} />
+      <Stack.Screen name="group/edit/[id]" options={{ title: 'Editar grupo' }} />
     </Stack>
   );
 }

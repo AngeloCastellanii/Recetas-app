@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '@/screens/placeholder';
+import { GroupsListScreen } from '@/screens/groups/list';
 
 export default function GroupsRoute() {
-  return (
-    <PlaceholderScreen
-      title="Grupos"
-      description="Aquí podrás crear y administrar grupos de recetas."
-    />
-  );
+  return <GroupsListScreen />;
 }

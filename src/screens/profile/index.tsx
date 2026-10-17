@@ -1,25 +1,20 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
+import { Screen } from '@/components/screen';
 import { UiButton } from '@/components/ui-button';
 import { UiTextField } from '@/components/ui-text-field';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
 import { useAuth } from '@/context/auth-context';
+import { getScreenMetrics, scaledFont } from '@/utils/layout';
 
 export function ProfileScreen() {
   const { user, logout, updateProfile, deleteAccount } = useAuth();
   const scheme = useColorScheme();
   const colors = Colors[scheme];
+  const metrics = getScreenMetrics();
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -97,95 +92,93 @@ export function ProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Perfil</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Edita tus datos o elimina tu cuenta
-          </Text>
-        </View>
+    <Screen includeTopSafeArea={false}>
+      <View style={styles.header}>
+        <Text
+          style={[
+            styles.title,
+            {
+              color: colors.text,
+              fontSize: scaledFont(metrics.isCompact ? 24 : 28, metrics.scale),
+            },
+          ]}
+        >
+          Perfil
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>
+          Edita tus datos o elimina tu cuenta
+        </Text>
+      </View>
 
-        <View style={styles.form}>
-          <UiTextField
-            label="Nombre"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            maxLength={LIMITS.name.max}
-            helperText={`${name.length}/${LIMITS.name.max}`}
-          />
-          <UiTextField
-            label="Correo"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            maxLength={LIMITS.email.max}
-          />
-          <UiTextField
-            label="Nueva contraseña (opcional)"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            maxLength={LIMITS.password.max}
-            helperText={`Déjala vacía para no cambiarla. ${LIMITS.password.min}-${LIMITS.password.max} caracteres.`}
-          />
-          <UiTextField
-            label="Confirmar nueva contraseña"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            maxLength={LIMITS.password.max}
-          />
+      <View style={styles.form}>
+        <UiTextField
+          label="Nombre"
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          maxLength={LIMITS.name.max}
+          helperText={`${name.length}/${LIMITS.name.max}`}
+        />
+        <UiTextField
+          label="Correo"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          autoComplete="email"
+          maxLength={LIMITS.email.max}
+        />
+        <UiTextField
+          label="Nueva contraseña (opcional)"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          textContentType="newPassword"
+          autoComplete="password-new"
+          maxLength={LIMITS.password.max}
+          helperText={`Déjala vacía para no cambiarla. ${LIMITS.password.min}-${LIMITS.password.max} caracteres.`}
+        />
+        <UiTextField
+          label="Confirmar nueva contraseña"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          textContentType="newPassword"
+          autoComplete="password-new"
+          maxLength={LIMITS.password.max}
+        />
 
-          {error ? (
-            <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
-          ) : null}
-          {success ? (
-            <Text style={[styles.message, { color: colors.tint }]}>{success}</Text>
-          ) : null}
+        {error ? (
+          <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
+        ) : null}
+        {success ? (
+          <Text style={[styles.message, { color: colors.tint }]}>{success}</Text>
+        ) : null}
 
-          <UiButton label="Guardar cambios" onPress={onSave} loading={saving} />
-          <UiButton
-            label="Cerrar sesión"
-            variant="secondary"
-            onPress={() => {
-              void logout();
-            }}
-          />
-          <UiButton
-            label="Borrar cuenta"
-            variant="danger"
-            loading={deleting}
-            onPress={onDeletePress}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <UiButton label="Guardar cambios" onPress={onSave} loading={saving} />
+        <UiButton
+          label="Cerrar sesión"
+          variant="secondary"
+          onPress={() => {
+            void logout();
+          }}
+        />
+        <UiButton
+          label="Borrar cuenta"
+          variant="danger"
+          loading={deleting}
+          onPress={onDeletePress}
+        />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  content: {
-    flexGrow: 1,
-    padding: 24,
-    gap: 20,
-  },
   header: { gap: 6 },
   title: {
-    fontSize: 28,
     fontWeight: '800',
   },
   subtitle: {

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Screen } from '@/components/screen';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 
@@ -13,18 +14,17 @@ export function PlaceholderScreen({ title, description }: Props) {
   const colors = Colors[scheme];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.description, { color: colors.muted }]}>{description}</Text>
-    </View>
+    <Screen centered includeTopSafeArea={false}>
+      <View style={styles.block}>
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.description, { color: colors.muted }]}>{description}</Text>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
+  block: {
     gap: 8,
   },
   title: {

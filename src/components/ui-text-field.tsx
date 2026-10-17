@@ -1,4 +1,5 @@
 import {
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -30,6 +31,7 @@ export function UiTextField({
       <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.muted}
+        underlineColorAndroid="transparent"
         style={[
           styles.input,
           {
@@ -52,6 +54,7 @@ export function UiTextField({
 
 const styles = StyleSheet.create({
   wrap: {
+    width: '100%',
     gap: 6,
   },
   label: {
@@ -59,11 +62,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   input: {
+    width: '100%',
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     fontSize: 16,
+    minHeight: 48,
   },
   helper: {
     fontSize: 12,

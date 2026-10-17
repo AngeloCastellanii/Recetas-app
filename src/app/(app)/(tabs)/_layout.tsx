@@ -27,6 +27,7 @@ export default function TabsLayout() {
         name="recipes"
         options={{
           title: 'Recetas',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <TabBarIcon name="cutlery" color={String(color)} />
           ),
@@ -36,6 +37,7 @@ export default function TabsLayout() {
         name="my-recipes"
         options={{
           title: 'Mis recetas',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <TabBarIcon name="user" color={String(color)} />
           ),

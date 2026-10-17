@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '@/screens/placeholder';
+import { RecipesListScreen } from '@/screens/recipes/list';
 
 export default function MyRecipesRoute() {
-  return (
-    <PlaceholderScreen
-      title="Mis recetas"
-      description="Aquí verás solo las recetas que hayas creado."
-    />
-  );
+  return <RecipesListScreen mode="mine" />;
 }

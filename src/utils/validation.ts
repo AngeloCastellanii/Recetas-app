@@ -97,3 +97,78 @@ export function validateGroupDescription(value: string): ValidationResult {
   }
   return { ok: true };
 }
+
+export function validateRecipeDescription(value: string): ValidationResult {
+  const description = normalizeText(value);
+  if (description.length > LIMITS.recipeDescription.max) {
+    return {
+      ok: false,
+      error: `La descripción no puede superar ${LIMITS.recipeDescription.max} caracteres.`,
+    };
+  }
+  return { ok: true };
+}
+
+export function validateIngredient(value: string): ValidationResult {
+  const ingredient = normalizeText(value);
+  if (ingredient.length < LIMITS.ingredient.min) {
+    return { ok: false, error: 'Cada ingrediente debe tener texto.' };
+  }
+  if (ingredient.length > LIMITS.ingredient.max) {
+    return {
+      ok: false,
+      error: `Cada ingrediente no puede superar ${LIMITS.ingredient.max} caracteres.`,
+    };
+  }
+  return { ok: true };
+}
+
+export function validateStep(value: string): ValidationResult {
+  const step = normalizeText(value);
+  if (step.length < LIMITS.step.min) {
+    return { ok: false, error: 'Cada paso debe tener texto.' };
+  }
+  if (step.length > LIMITS.step.max) {
+    return {
+      ok: false,
+      error: `Cada paso no puede superar ${LIMITS.step.max} caracteres.`,
+    };
+  }
+  return { ok: true };
+}
+
+export function validatePrepTime(value: string): ValidationResult {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { ok: true };
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed)) {
+    return { ok: false, error: 'El tiempo debe ser un número entero.' };
+  }
+  if (parsed < LIMITS.prepTimeMinutes.min || parsed > LIMITS.prepTimeMinutes.max) {
+    return {
+      ok: false,
+      error: `El tiempo debe estar entre ${LIMITS.prepTimeMinutes.min} y ${LIMITS.prepTimeMinutes.max}.`,
+    };
+  }
+  return { ok: true };
+}
+
+export function validateServings(value: string): ValidationResult {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { ok: true };
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed)) {
+    return { ok: false, error: 'Las porciones deben ser un número entero.' };
+  }
+  if (parsed < LIMITS.servings.min || parsed > LIMITS.servings.max) {
+    return {
+      ok: false,
+      error: `Las porciones deben estar entre ${LIMITS.servings.min} y ${LIMITS.servings.max}.`,
+    };
+  }
+  return { ok: true };
+}

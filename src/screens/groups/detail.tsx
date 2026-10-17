@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback } from 'react';
 import {
   Alert,
@@ -142,7 +142,10 @@ export function GroupDetailScreen() {
                   { borderColor: colors.border, backgroundColor: colors.card },
                 ]}
               >
-                <Pressable style={styles.recipeInfo}>
+                <Pressable
+                  style={styles.recipeInfo}
+                  onPress={() => router.push(`/(app)/recipe/${recipe.id}` as Href)}
+                >
                   <Text
                     style={[styles.recipeTitle, { color: colors.text }]}
                     numberOfLines={1}

@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '@/screens/placeholder';
+import { RecipesListScreen } from '@/screens/recipes/list';
 
 export default function RecipesRoute() {
-  return (
-    <PlaceholderScreen
-      title="Recetas"
-      description="Aquí verás todas las recetas disponibles, ordenadas alfabéticamente."
-    />
-  );
+  return <RecipesListScreen mode="all" />;
 }

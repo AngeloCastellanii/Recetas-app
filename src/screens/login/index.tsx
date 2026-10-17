@@ -1,6 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
@@ -16,6 +16,7 @@ export function LoginScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
   const metrics = getScreenMetrics();
+  const submitting = useRef(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +24,10 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async () => {
+    if (submitting.current || loading) {
+      return;
+    }
+    submitting.current = true;
     setError(null);
     setLoading(true);
     try {
@@ -32,8 +37,11 @@ export function LoginScreen() {
         return;
       }
       router.replace('/(app)/(tabs)/recipes');
+    } catch {
+      setError('No se pudo iniciar sesión. Inténtalo de nuevo en unos segundos.');
     } finally {
       setLoading(false);
+      submitting.current = false;
     }
   };
 
@@ -70,7 +78,7 @@ export function LoginScreen() {
           textContentType="emailAddress"
           autoComplete="email"
           placeholder="tu@correo.com"
-          helperText="Debe incluir @ y terminar en .com"
+          helperText="Ej: nombre@correo.com, usuario@empresa.net"
         />
         <UiTextField
           label="Contraseña"

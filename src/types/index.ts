@@ -2,7 +2,6 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -18,6 +17,7 @@ export type Recipe = {
   prepTimeMinutes: number | null;
   servings: number | null;
   imageUri: string | null;
+  isCourtesy: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -28,12 +28,9 @@ export type Group = {
   description: string;
   recipeIds: string[];
   ownerId: string;
+  isCourtesy: boolean;
   createdAt: string;
   updatedAt: string;
-};
-
-export type Session = {
-  userId: string;
 };
 
 export type ThemePreference = 'light' | 'dark';

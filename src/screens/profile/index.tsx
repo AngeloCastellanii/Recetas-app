@@ -178,7 +178,7 @@ export function ProfileScreen() {
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
-          helperText="Debe incluir @ y terminar en .com"
+          helperText="Ej: nombre@correo.com, usuario@empresa.net"
         />
         <UiTextField
           label="Nueva contraseña (opcional)"

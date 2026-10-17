@@ -8,28 +8,46 @@ import {
   type ReactNode,
 } from 'react';
 
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { ensureProfile, fetchProfile, updateProfileRow } from '@/services/api';
 import type { User } from '@/types';
-import {
-  clearSession,
-  createUser,
-  deleteGroupsByOwnerId,
-  deleteRecipesByAuthorId,
-  deleteUserById,
-  findUserByEmail,
-  findUserById,
-  getSession,
-  setSession,
-  unlinkRecipesFromAllGroups,
-  updateUser,
-} from '@/storage';
-import { createId } from '@/utils/id';
+import { mapAuthError } from '@/utils/auth-errors';
 import { normalizeText } from '@/utils/normalize';
-import { hashPassword, verifyPassword } from '@/utils/password';
 import {
   validateEmail,
   validateName,
   validatePassword,
 } from '@/utils/validation';
+
+/** Evita ráfagas de login/registro que disparan rate limit de Supabase. */
+let authInFlight = false;
+let authCooldownUntil = 0;
+
+function beginAuthRequest(): { ok: true } | { ok: false; error: string } {
+  const now = Date.now();
+  if (now < authCooldownUntil) {
+    const seconds = Math.max(1, Math.ceil((authCooldownUntil - now) / 1000));
+    return {
+      ok: false,
+      error: `Espera ${seconds}s antes de intentar de nuevo.`,
+    };
+  }
+  if (authInFlight) {
+    return {
+      ok: false,
+      error: 'Ya hay un intento en curso. Espera un momento.',
+    };
+  }
+  authInFlight = true;
+  return { ok: true };
+}
+
+function endAuthRequest(failed: boolean) {
+  authInFlight = false;
+  if (failed) {
+    authCooldownUntil = Date.now() + 2500;
+  }
+}
 
 type AuthContextValue = {
   user: User | null;
@@ -55,64 +73,94 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function configError() {
+  return {
+    ok: false as const,
+    error:
+      'Supabase no está configurado. Crea un archivo .env con EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY.',
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    const session = await getSession();
-    if (!session) {
+    if (!isSupabaseConfigured) {
       setUser(null);
       return;
     }
-    const current = await findUserById(session.userId);
-    if (!current) {
-      await clearSession();
+
+    const { data } = await supabase.auth.getSession();
+    const sessionUser = data.session?.user;
+    if (!sessionUser) {
       setUser(null);
       return;
     }
-    setUser(current);
+
+    let profile = await fetchProfile(sessionUser.id);
+    if (!profile) {
+      profile = await ensureProfile({
+        id: sessionUser.id,
+        name:
+          (sessionUser.user_metadata?.name as string | undefined) ||
+          sessionUser.email?.split('@')[0] ||
+          'Usuario',
+        email: sessionUser.email ?? '',
+      });
+    }
+    setUser(profile);
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    const timeout = setTimeout(() => {
-      if (mounted) {
-        setIsLoading(false);
-      }
-    }, 2500);
 
     (async () => {
       try {
         await refreshUser();
       } finally {
         if (mounted) {
-          clearTimeout(timeout);
           setIsLoading(false);
         }
       }
     })();
 
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void refreshUser();
+    });
+
     return () => {
       mounted = false;
-      clearTimeout(timeout);
+      sub.subscription.unsubscribe();
     };
   }, [refreshUser]);
 
   const register = useCallback(
     async (input: { name: string; email: string; password: string }) => {
+      if (!isSupabaseConfigured) {
+        return configError();
+      }
+
+      const gate = beginAuthRequest();
+      if (!gate.ok) {
+        return { ok: false as const, error: gate.error };
+      }
+
       const nameCheck = validateName(input.name);
       if (!nameCheck.ok) {
+        endAuthRequest(false);
         return { ok: false as const, error: nameCheck.error ?? 'Nombre inválido.' };
       }
 
       const emailCheck = validateEmail(input.email);
       if (!emailCheck.ok) {
+        endAuthRequest(false);
         return { ok: false as const, error: emailCheck.error ?? 'Correo inválido.' };
       }
 
       const passwordCheck = validatePassword(input.password);
       if (!passwordCheck.ok) {
+        endAuthRequest(false);
         return {
           ok: false as const,
           error: passwordCheck.error ?? 'Contraseña inválida.',
@@ -120,37 +168,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const email = normalizeText(input.email).toLowerCase();
-      const existing = await findUserByEmail(email);
-      if (existing) {
-        return { ok: false as const, error: 'Ya existe una cuenta con ese correo.' };
+      const name = normalizeText(input.name);
+
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password: input.password,
+          options: { data: { name } },
+        });
+
+        if (error) {
+          endAuthRequest(true);
+          return { ok: false as const, error: mapAuthError(error) };
+        }
+
+        if (!data.user) {
+          endAuthRequest(true);
+          return {
+            ok: false as const,
+            error:
+              'Revisa tu correo para confirmar la cuenta, o desactiva Confirm email en Supabase.',
+          };
+        }
+
+        const profile = await ensureProfile({
+          id: data.user.id,
+          name,
+          email,
+        });
+        setUser(profile);
+        endAuthRequest(false);
+        return { ok: true as const };
+      } catch (err) {
+        endAuthRequest(true);
+        return { ok: false as const, error: mapAuthError(err) };
       }
-
-      const now = new Date().toISOString();
-      const created = await createUser({
-        id: createId('user'),
-        name: normalizeText(input.name),
-        email,
-        passwordHash: await hashPassword(input.password),
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await setSession({ userId: created.id });
-      setUser(created);
-      return { ok: true as const };
     },
     []
   );
 
   const login = useCallback(
     async (input: { email: string; password: string }) => {
+      if (!isSupabaseConfigured) {
+        return configError();
+      }
+
+      const gate = beginAuthRequest();
+      if (!gate.ok) {
+        return { ok: false as const, error: gate.error };
+      }
+
       const emailCheck = validateEmail(input.email);
       if (!emailCheck.ok) {
+        endAuthRequest(false);
         return { ok: false as const, error: emailCheck.error ?? 'Correo inválido.' };
       }
 
       const passwordCheck = validatePassword(input.password);
       if (!passwordCheck.ok) {
+        endAuthRequest(false);
         return {
           ok: false as const,
           error: passwordCheck.error ?? 'Contraseña inválida.',
@@ -158,30 +234,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const email = normalizeText(input.email).toLowerCase();
-      const existing = await findUserByEmail(email);
-      if (!existing) {
-        return { ok: false as const, error: 'Correo o contraseña incorrectos.' };
-      }
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password: input.password,
+        });
 
-      const valid = await verifyPassword(input.password, existing.passwordHash);
-      if (!valid) {
-        return { ok: false as const, error: 'Correo o contraseña incorrectos.' };
-      }
+        if (error) {
+          endAuthRequest(true);
+          return { ok: false as const, error: mapAuthError(error) };
+        }
 
-      await setSession({ userId: existing.id });
-      setUser(existing);
-      return { ok: true as const };
+        await refreshUser();
+        endAuthRequest(false);
+        return { ok: true as const };
+      } catch (err) {
+        endAuthRequest(true);
+        return { ok: false as const, error: mapAuthError(err) };
+      }
     },
-    []
+    [refreshUser]
   );
 
   const logout = useCallback(async () => {
-    await clearSession();
+    await supabase.auth.signOut();
     setUser(null);
   }, []);
 
   const updateProfile = useCallback(
     async (input: { name: string; email: string; password?: string }) => {
+      if (!isSupabaseConfigured) {
+        return configError();
+      }
       if (!user) {
         return { ok: false as const, error: 'No hay sesión activa.' };
       }
@@ -197,12 +281,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const email = normalizeText(input.email).toLowerCase();
-      const existing = await findUserByEmail(email);
-      if (existing && existing.id !== user.id) {
-        return { ok: false as const, error: 'Ese correo ya está en uso.' };
+      const name = normalizeText(input.name);
+
+      if (email !== user.email) {
+        const { error } = await supabase.auth.updateUser({ email });
+        if (error) {
+          return { ok: false as const, error: error.message };
+        }
       }
 
-      let passwordHash = user.passwordHash;
       if (input.password && input.password.length > 0) {
         const passwordCheck = validatePassword(input.password);
         if (!passwordCheck.ok) {
@@ -211,18 +298,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             error: passwordCheck.error ?? 'Contraseña inválida.',
           };
         }
-        passwordHash = await hashPassword(input.password);
+        const { error } = await supabase.auth.updateUser({
+          password: input.password,
+        });
+        if (error) {
+          return { ok: false as const, error: error.message };
+        }
       }
 
-      const updated = await updateUser({
-        ...user,
-        name: normalizeText(input.name),
-        email,
-        passwordHash,
-        updatedAt: new Date().toISOString(),
-      });
-
-      setUser(updated);
+      const result = await updateProfileRow({ id: user.id, name, email });
+      if (!result.ok) {
+        return result;
+      }
+      setUser(result.user);
       return { ok: true as const };
     },
     [user]
@@ -233,17 +321,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: 'No hay sesión activa.' };
     }
 
-    try {
-      const removedRecipeIds = await deleteRecipesByAuthorId(user.id);
-      await unlinkRecipesFromAllGroups(removedRecipeIds);
-      await deleteGroupsByOwnerId(user.id);
-      await deleteUserById(user.id);
-      await clearSession();
-      setUser(null);
-      return { ok: true as const };
-    } catch {
-      return { ok: false as const, error: 'No se pudo borrar la cuenta.' };
-    }
+    // Borra datos del usuario; la cuenta auth requiere service role o Edge Function.
+    // Eliminamos recetas/grupos propios y cerramos sesión.
+    await supabase.from('recipes').delete().eq('author_id', user.id);
+    await supabase.from('groups').delete().eq('owner_id', user.id);
+    await supabase.auth.signOut();
+    setUser(null);
+    return { ok: true as const };
   }, [user]);
 
   const value = useMemo(

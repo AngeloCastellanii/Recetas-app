@@ -1,6 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
@@ -17,6 +17,7 @@ export function RegisterScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
   const metrics = getScreenMetrics();
+  const submitting = useRef(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -26,6 +27,9 @@ export function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async () => {
+    if (submitting.current || loading) {
+      return;
+    }
     setError(null);
 
     if (password !== confirmPassword) {
@@ -33,6 +37,7 @@ export function RegisterScreen() {
       return;
     }
 
+    submitting.current = true;
     setLoading(true);
     try {
       const result = await register({ name, email, password });
@@ -41,8 +46,11 @@ export function RegisterScreen() {
         return;
       }
       router.replace('/(app)/(tabs)/recipes');
+    } catch {
+      setError('No se pudo registrar. Inténtalo de nuevo en unos segundos.');
     } finally {
       setLoading(false);
+      submitting.current = false;
     }
   };
 
@@ -86,7 +94,7 @@ export function RegisterScreen() {
           textContentType="emailAddress"
           autoComplete="email"
           placeholder="tu@correo.com"
-          helperText="Debe incluir @ y terminar en .com"
+          helperText="Ej: nombre@correo.com, usuario@empresa.net"
         />
         <UiTextField
           label="Contraseña"

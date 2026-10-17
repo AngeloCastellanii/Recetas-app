@@ -1,19 +1,23 @@
-import type { Session } from '@/types';
 import { STORAGE_KEYS } from '@/storage/keys';
-import { readJson, removeKey, writeJson } from '@/storage/json-store';
+import { readJson, writeJson } from '@/storage/json-store';
 
-export async function getSession(): Promise<Session | null> {
-  const session = await readJson<Session | null>(STORAGE_KEYS.session, null);
-  if (!session || typeof session.userId !== 'string' || !session.userId) {
+/** Legacy local session shape (ya no se usa con Supabase Auth). */
+type LegacySession = {
+  userId: string;
+};
+
+export async function getSession(): Promise<LegacySession | null> {
+  const session = await readJson<LegacySession | null>(STORAGE_KEYS.session, null);
+  if (!session?.userId) {
     return null;
   }
   return session;
 }
 
-export async function setSession(session: Session): Promise<void> {
+export async function setSession(session: LegacySession): Promise<void> {
   await writeJson(STORAGE_KEYS.session, session);
 }
 
 export async function clearSession(): Promise<void> {
-  await removeKey(STORAGE_KEYS.session);
+  await writeJson(STORAGE_KEYS.session, null);
 }

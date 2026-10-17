@@ -14,6 +14,10 @@ export function validateName(value: string): ValidationResult {
   return { ok: true };
 }
 
+/** local@dominio.tld — acepta .com, .net, .gob, .ve, .edu.ve, etc. */
+const EMAIL_REGEX =
+  /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+
 export function validateEmail(value: string): ValidationResult {
   const email = normalizeText(value).toLowerCase();
   if (email.length < LIMITS.email.min) {
@@ -22,12 +26,11 @@ export function validateEmail(value: string): ValidationResult {
   if (!email.includes('@')) {
     return { ok: false, error: 'El correo debe incluir @.' };
   }
-  if (!email.endsWith('.com')) {
-    return { ok: false, error: 'El correo debe terminar en .com.' };
-  }
-  const [local, domain] = email.split('@');
-  if (!local || !domain || !domain.includes('.')) {
-    return { ok: false, error: 'Ingresa un correo válido (ejemplo: tu@correo.com).' };
+  if (!EMAIL_REGEX.test(email)) {
+    return {
+      ok: false,
+      error: 'Ingresa un correo válido (ej: tu@correo.com, nombre@empresa.net).',
+    };
   }
   return { ok: true };
 }

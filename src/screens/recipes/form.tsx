@@ -9,6 +9,7 @@ import { UiTextField } from '@/components/ui-text-field';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
+import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
 import { asRouteId } from '@/utils/params';
 import type { FieldErrors } from '@/types';
@@ -20,6 +21,7 @@ type Props = {
 export function RecipeFormScreen({ mode }: Props) {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
+  const { user } = useAuth();
   const { createRecipe, updateRecipe, getRecipeById, groups } = useData();
   const scheme = useColorScheme();
   const colors = Colors[scheme];
@@ -28,6 +30,10 @@ export function RecipeFormScreen({ mode }: Props) {
   const existing = useMemo(
     () => (recipeId ? getRecipeById(recipeId) : undefined),
     [recipeId, getRecipeById]
+  );
+  const myGroups = useMemo(
+    () => groups.filter((group) => group.ownerId === user?.id),
+    [groups, user?.id]
   );
 
   const [title, setTitle] = useState(existing?.title ?? '');
@@ -292,13 +298,13 @@ export function RecipeFormScreen({ mode }: Props) {
         />
 
         <Text style={[styles.section, { color: colors.text }]}>Grupos</Text>
-        {groups.length === 0 ? (
+        {myGroups.length === 0 ? (
           <Text style={{ color: colors.muted }}>
             No hay grupos. Puedes crearlos en la pestaña Grupos.
           </Text>
         ) : (
           <View style={styles.groups}>
-            {groups.map((group) => {
+            {myGroups.map((group) => {
               const selected = groupIds.includes(group.id);
               return (
                 <Pressable

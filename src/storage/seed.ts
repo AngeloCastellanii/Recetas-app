@@ -1,19 +1,7 @@
-import type { Group, Recipe } from '@/types';
-import { createGroup, getGroups } from '@/storage/groups';
-import { setDemoSeeded, getPreferences } from '@/storage/preferences';
-import { createRecipe, getRecipes } from '@/storage/recipes';
-import { syncRecipeGroupLinks } from '@/storage/relations';
-import { createUser, getUsers, updateUser } from '@/storage/users';
-import { createId } from '@/utils/id';
-import { normalizeText } from '@/utils/normalize';
-import { hashPassword } from '@/utils/password';
-
-const DEMO_EMAIL = 'demo@recetario.app';
-const DEMO_AUTHOR_NAME = 'Cortesía de la App';
-/** Subir este número cuando se agreguen más recetas demo. */
+/** Catálogo demo (se inserta en Supabase vía services/demo-seed). */
 export const DEMO_SEED_VERSION = 2;
 
-type DemoRecipeDraft = {
+export type DemoRecipeDraft = {
   title: string;
   description: string;
   ingredients: string[];
@@ -23,7 +11,7 @@ type DemoRecipeDraft = {
   groupNames: string[];
 };
 
-const DEMO_GROUPS: { name: string; description: string }[] = [
+export const DEMO_GROUPS: { name: string; description: string }[] = [
   {
     name: 'Desayunos',
     description: 'Ideas rápidas para empezar el día',
@@ -46,7 +34,7 @@ const DEMO_GROUPS: { name: string; description: string }[] = [
   },
 ];
 
-const DEMO_RECIPES: DemoRecipeDraft[] = [
+export const DEMO_RECIPES: DemoRecipeDraft[] = [
   {
     title: 'Tortilla de verduras',
     description: 'Una tortilla rápida con vegetales frescos.',
@@ -643,108 +631,7 @@ const DEMO_RECIPES: DemoRecipeDraft[] = [
   },
 ];
 
-async function ensureDemoUser() {
-  const users = await getUsers();
-  let demoUser = users.find((user) => user.email === DEMO_EMAIL) ?? null;
-
-  if (!demoUser) {
-    const now = new Date().toISOString();
-    demoUser = await createUser({
-      id: createId('user'),
-      name: DEMO_AUTHOR_NAME,
-      email: DEMO_EMAIL,
-      passwordHash: await hashPassword('demo1234'),
-      createdAt: now,
-      updatedAt: now,
-    });
-    return demoUser;
-  }
-
-  if (demoUser.name !== DEMO_AUTHOR_NAME) {
-    demoUser = await updateUser({
-      ...demoUser,
-      name: DEMO_AUTHOR_NAME,
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
-  return demoUser;
-}
-
-async function ensureDemoGroups(ownerId: string): Promise<Map<string, Group>> {
-  const existing = await getGroups();
-  const byName = new Map(
-    existing.map((group) => [normalizeText(group.name).toLowerCase(), group])
-  );
-  const result = new Map<string, Group>();
-
-  for (const draft of DEMO_GROUPS) {
-    const key = normalizeText(draft.name).toLowerCase();
-    let group = byName.get(key);
-
-    if (!group) {
-      const now = new Date().toISOString();
-      group = await createGroup({
-        id: createId('group'),
-        name: draft.name,
-        description: draft.description,
-        recipeIds: [],
-        ownerId,
-        createdAt: now,
-        updatedAt: now,
-      });
-      byName.set(key, group);
-    }
-
-    result.set(draft.name, group);
-  }
-
-  return result;
-}
-
+/** @deprecated El seed local ya no se usa; el backend es Supabase. */
 export async function seedDemoDataIfNeeded(): Promise<void> {
-  const prefs = await getPreferences();
-  if (prefs.demoSeedVersion >= DEMO_SEED_VERSION) {
-    return;
-  }
-
-  const demoUser = await ensureDemoUser();
-  const groupsByName = await ensureDemoGroups(demoUser.id);
-  const existingRecipes = await getRecipes();
-  const titles = new Set(
-    existingRecipes.map((recipe) => normalizeText(recipe.title).toLowerCase())
-  );
-
-  for (const draft of DEMO_RECIPES) {
-    const key = normalizeText(draft.title).toLowerCase();
-    if (titles.has(key)) {
-      continue;
-    }
-
-    const groupIds = draft.groupNames
-      .map((name) => groupsByName.get(name)?.id)
-      .filter((id): id is string => Boolean(id));
-
-    const now = new Date().toISOString();
-    const recipe: Recipe = {
-      id: createId('recipe'),
-      title: draft.title,
-      description: draft.description,
-      ingredients: draft.ingredients,
-      steps: draft.steps,
-      authorId: demoUser.id,
-      groupIds,
-      prepTimeMinutes: draft.prepTimeMinutes,
-      servings: draft.servings,
-      imageUri: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await createRecipe(recipe);
-    await syncRecipeGroupLinks(recipe.id, [], recipe.groupIds);
-    titles.add(key);
-  }
-
-  await setDemoSeeded(DEMO_SEED_VERSION);
+  return;
 }

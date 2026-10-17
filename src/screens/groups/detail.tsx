@@ -54,7 +54,7 @@ export function GroupDetailScreen() {
   const onDelete = () => {
     Alert.alert(
       'Borrar grupo',
-      'Las recetas se desvincularán de este grupo, pero no se eliminarán.',
+      'Se eliminará el grupo y también todas las recetas que tenga asociadas.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {

@@ -10,7 +10,6 @@ import {
 import type { AppPreferences, ThemePreference } from '@/types';
 import {
   getPreferences,
-  seedDemoDataIfNeeded,
   setOnboardingDone as persistOnboardingDone,
   setThemePreference,
   toggleFavorite as toggleFavoriteInStore,
@@ -71,7 +70,6 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const completeOnboarding = useCallback(async () => {
-    await seedDemoDataIfNeeded();
     const next = await persistOnboardingDone();
     setPreferences(next);
   }, []);

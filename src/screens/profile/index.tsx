@@ -1,49 +1,185 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { UiButton } from '@/components/ui-button';
+import { UiTextField } from '@/components/ui-text-field';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
+import { LIMITS } from '@/constants/limits';
 import { useAuth } from '@/context/auth-context';
 
 export function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile, deleteAccount } = useAuth();
   const scheme = useColorScheme();
   const colors = Colors[scheme];
 
+  const [name, setName] = useState(user?.name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setName(user?.name ?? '');
+    setEmail(user?.email ?? '');
+  }, [user?.id, user?.name, user?.email]);
+
+  const onSave = async () => {
+    setError(null);
+    setSuccess(null);
+
+    if (password.length > 0 && password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await updateProfile({
+        name,
+        email,
+        password: password.length > 0 ? password : undefined,
+      });
+
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      setPassword('');
+      setConfirmPassword('');
+      setSuccess('Perfil actualizado correctamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDeletePress = () => {
+    Alert.alert(
+      'Borrar cuenta',
+      'Se eliminarán tu cuenta, tus recetas y tus grupos. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar',
+          style: 'destructive',
+          onPress: () => {
+            void confirmDelete();
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDelete = async () => {
+    setError(null);
+    setSuccess(null);
+    setDeleting(true);
+    try {
+      const result = await deleteAccount();
+      if (!result.ok) {
+        setError(result.error);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Perfil</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Sesión activa en este dispositivo
-        </Text>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
+    <KeyboardAvoidingView
+      style={[styles.flex, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.label, { color: colors.muted }]}>Nombre</Text>
-        <Text style={[styles.value, { color: colors.text }]}>
-          {user?.name ?? '—'}
-        </Text>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Perfil</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Edita tus datos o elimina tu cuenta
+          </Text>
+        </View>
 
-        <Text style={[styles.label, { color: colors.muted }]}>Correo</Text>
-        <Text style={[styles.value, { color: colors.text }]}>
-          {user?.email ?? '—'}
-        </Text>
-      </View>
+        <View style={styles.form}>
+          <UiTextField
+            label="Nombre"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            maxLength={LIMITS.name.max}
+            helperText={`${name.length}/${LIMITS.name.max}`}
+          />
+          <UiTextField
+            label="Correo"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            maxLength={LIMITS.email.max}
+          />
+          <UiTextField
+            label="Nueva contraseña (opcional)"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            maxLength={LIMITS.password.max}
+            helperText={`Déjala vacía para no cambiarla. ${LIMITS.password.min}-${LIMITS.password.max} caracteres.`}
+          />
+          <UiTextField
+            label="Confirmar nueva contraseña"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            maxLength={LIMITS.password.max}
+          />
 
-      <UiButton label="Cerrar sesión" variant="secondary" onPress={() => logout()} />
-    </View>
+          {error ? (
+            <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
+          ) : null}
+          {success ? (
+            <Text style={[styles.message, { color: colors.tint }]}>{success}</Text>
+          ) : null}
+
+          <UiButton label="Guardar cambios" onPress={onSave} loading={saving} />
+          <UiButton
+            label="Cerrar sesión"
+            variant="secondary"
+            onPress={() => {
+              void logout();
+            }}
+          />
+          <UiButton
+            label="Borrar cuenta"
+            variant="danger"
+            loading={deleting}
+            onPress={onDeletePress}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  flex: { flex: 1 },
+  content: {
+    flexGrow: 1,
     padding: 24,
     gap: 20,
   },
@@ -55,19 +191,9 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
   },
-  card: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    gap: 6,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  value: {
-    fontSize: 17,
+  form: { gap: 14 },
+  message: {
+    fontSize: 14,
     fontWeight: '600',
   },
 });

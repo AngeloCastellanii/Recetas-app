@@ -12,12 +12,15 @@ import type { User } from '@/types';
 import {
   clearSession,
   createUser,
+  deleteGroupsByOwnerId,
+  deleteRecipesByAuthorId,
+  deleteUserById,
   findUserByEmail,
   findUserById,
   getSession,
   setSession,
+  unlinkRecipesFromAllGroups,
   updateUser,
-  deleteUserById,
 } from '@/storage';
 import { createId } from '@/utils/id';
 import { normalizeText } from '@/utils/normalize';
@@ -224,6 +227,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      const removedRecipeIds = await deleteRecipesByAuthorId(user.id);
+      await unlinkRecipesFromAllGroups(removedRecipeIds);
+      await deleteGroupsByOwnerId(user.id);
       await deleteUserById(user.id);
       await clearSession();
       setUser(null);

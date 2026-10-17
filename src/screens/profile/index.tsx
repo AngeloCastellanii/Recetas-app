@@ -146,17 +146,13 @@ export function ProfileScreen() {
                   styles.themeChip,
                   {
                     borderColor: selected ? colors.tint : colors.border,
-                    backgroundColor: selected ? colors.tint : colors.card,
+                    backgroundColor: selected ? colors.tint : colors.tintSoft,
                   },
                 ]}
               >
                 <Text
                   style={{
-                    color: selected
-                      ? scheme === 'dark'
-                        ? '#0F1612'
-                        : '#FFFFFF'
-                      : colors.text,
+                    color: selected ? colors.onTint : colors.text,
                     fontWeight: '700',
                   }}
                 >
@@ -172,8 +168,6 @@ export function ProfileScreen() {
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
-          maxLength={LIMITS.name.max}
-          helperText={`${name.length}/${LIMITS.name.max}`}
         />
         <UiTextField
           label="Correo"
@@ -184,7 +178,7 @@ export function ProfileScreen() {
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
-          maxLength={LIMITS.email.max}
+          helperText="Debe incluir @ y terminar en .com"
         />
         <UiTextField
           label="Nueva contraseña (opcional)"
@@ -193,8 +187,7 @@ export function ProfileScreen() {
           secureTextEntry
           textContentType="newPassword"
           autoComplete="password-new"
-          maxLength={LIMITS.password.max}
-          helperText={`Déjala vacía para no cambiarla. ${LIMITS.password.min}-${LIMITS.password.max} caracteres.`}
+          helperText={`Déjala vacía para no cambiarla. Mínimo ${LIMITS.password.min} caracteres.`}
         />
         <UiTextField
           label="Confirmar nueva contraseña"
@@ -203,7 +196,6 @@ export function ProfileScreen() {
           secureTextEntry
           textContentType="newPassword"
           autoComplete="password-new"
-          maxLength={LIMITS.password.max}
         />
 
         {error ? (

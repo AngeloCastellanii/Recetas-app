@@ -32,10 +32,17 @@ export function UiButton({
       ? colors.tint
       : variant === 'danger'
         ? colors.danger
-        : 'transparent';
+        : colors.tintSoft;
+
+  const borderColor =
+    variant === 'secondary' ? colors.tintSoft : backgroundColor;
 
   const textColor =
-    variant === 'secondary' ? colors.tint : scheme === 'dark' ? '#0F1612' : '#FFFFFF';
+    variant === 'secondary'
+      ? colors.tint
+      : variant === 'danger'
+        ? '#FFFFFF'
+        : colors.onTint;
 
   return (
     <Pressable
@@ -45,8 +52,9 @@ export function UiButton({
         styles.button,
         {
           backgroundColor,
-          borderColor: variant === 'secondary' ? colors.tint : backgroundColor,
-          opacity: isDisabled || state.pressed ? 0.7 : 1,
+          borderColor,
+          opacity: isDisabled ? 0.55 : state.pressed ? 0.88 : 1,
+          transform: [{ scale: state.pressed && !isDisabled ? 0.98 : 1 }],
         },
         typeof style === 'function' ? style(state) : style,
       ]}
@@ -63,15 +71,16 @@ export function UiButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 48,
-    borderRadius: 12,
+    minHeight: 52,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
   },
   label: {
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

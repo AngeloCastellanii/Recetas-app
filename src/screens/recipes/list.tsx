@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   FlatList,
@@ -81,8 +82,8 @@ export function RecipesListScreen({ mode }: Props) {
           styles.card,
           {
             backgroundColor: colors.card,
-            borderColor: colors.border,
-            opacity: pressed ? 0.85 : 1,
+            opacity: pressed ? 0.9 : 1,
+            transform: [{ scale: pressed ? 0.99 : 1 }],
           },
         ]}
       >
@@ -90,7 +91,9 @@ export function RecipesListScreen({ mode }: Props) {
           {item.imageUri ? (
             <Image source={{ uri: item.imageUri }} style={styles.thumb} />
           ) : (
-            <View style={[styles.thumb, { backgroundColor: colors.border }]} />
+            <View style={[styles.thumb, { backgroundColor: colors.tintSoft }]}>
+              <FontAwesome name="cutlery" size={20} color={colors.tint} />
+            </View>
           )}
           <View style={styles.cardBody}>
             <View style={styles.titleRow}>
@@ -133,6 +136,12 @@ export function RecipesListScreen({ mode }: Props) {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={[colors.heroFrom, colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View
         style={[
           styles.header,
@@ -143,13 +152,14 @@ export function RecipesListScreen({ mode }: Props) {
           },
         ]}
       >
+        <Text style={[styles.eyebrow, { color: colors.tint }]}>Recetario</Text>
         <Text style={[styles.title, { color: colors.text }]}>
           {mode === 'mine' ? 'Mis recetas' : 'Recetas'}
         </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           {mode === 'mine'
-            ? 'Solo las recetas que has creado, en orden alfabético'
-            : 'Todas las recetas del dispositivo, en orden alfabético'}
+            ? 'Solo las que has creado, ordenadas A-Z'
+            : 'Todas las del dispositivo, ordenadas A-Z'}
         </Text>
 
         <SearchField
@@ -173,19 +183,14 @@ export function RecipesListScreen({ mode }: Props) {
                   style={[
                     styles.chip,
                     {
-                      borderColor: selected ? colors.tint : colors.border,
-                      backgroundColor: selected ? colors.tint : colors.card,
+                      backgroundColor: selected ? colors.tint : colors.tintSoft,
                     },
                   ]}
                 >
                   <Text
                     style={{
-                      color: selected
-                        ? scheme === 'dark'
-                          ? '#0F1612'
-                          : '#FFFFFF'
-                        : colors.text,
-                      fontWeight: '600',
+                      color: selected ? colors.onTint : colors.text,
+                      fontWeight: '700',
                       fontSize: 13,
                     }}
                   >
@@ -239,29 +244,39 @@ export function RecipesListScreen({ mode }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  header: { gap: 10 },
-  title: { fontSize: 28, fontWeight: '800' },
-  subtitle: { fontSize: 15 },
-  count: { fontSize: 13, fontWeight: '600' },
+  header: { gap: 12 },
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, lineHeight: 21 },
+  count: { fontSize: 13, fontWeight: '700' },
   loader: { marginTop: 40 },
-  filters: { maxHeight: 44 },
+  filters: { maxHeight: 42 },
   filterRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   chip: {
-    borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
   card: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 18,
+    padding: 14,
   },
-  cardRow: { flexDirection: 'row', gap: 12 },
-  thumb: { width: 72, height: 72, borderRadius: 12 },
+  cardRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  thumb: {
+    width: 76,
+    height: 76,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardBody: { flex: 1, gap: 4 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontSize: 17, fontWeight: '700' },
   cardDesc: { fontSize: 14, lineHeight: 20 },
-  meta: { fontSize: 13, marginTop: 2 },
+  meta: { fontSize: 12, marginTop: 2, fontWeight: '600' },
 });

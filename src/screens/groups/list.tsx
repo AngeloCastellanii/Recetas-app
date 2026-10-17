@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -56,8 +57,7 @@ export function GroupsListScreen() {
           styles.card,
           {
             backgroundColor: colors.card,
-            borderColor: colors.border,
-            opacity: pressed ? 0.85 : 1,
+            opacity: pressed ? 0.9 : 1,
           },
         ]}
       >
@@ -79,6 +79,12 @@ export function GroupsListScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={[colors.heroFrom, colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View
         style={[
           styles.header,
@@ -89,6 +95,7 @@ export function GroupsListScreen() {
           },
         ]}
       >
+        <Text style={[styles.eyebrow, { color: colors.tint }]}>Colecciones</Text>
         <Text style={[styles.title, { color: colors.text }]}>Grupos</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           Organiza tus recetas en colecciones
@@ -135,26 +142,33 @@ export function GroupsListScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    gap: 10,
+    gap: 12,
     paddingTop: 8,
   },
-  title: {
-    fontSize: 28,
+  eyebrow: {
+    fontSize: 12,
     fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
+    lineHeight: 21,
   },
   metaHeader: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   loader: { marginTop: 40 },
   card: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    gap: 4,
+    borderRadius: 18,
+    padding: 16,
+    gap: 6,
   },
   cardTitle: {
     fontSize: 17,
@@ -165,7 +179,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   meta: {
-    fontSize: 13,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
   },
 });

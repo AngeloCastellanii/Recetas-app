@@ -172,18 +172,13 @@ export function RecipeDetailScreen() {
                     styles.chip,
                     {
                       opacity: busy ? 0.6 : 1,
-                      borderColor: selected ? colors.tint : colors.border,
-                      backgroundColor: selected ? colors.tint : colors.card,
+                      backgroundColor: selected ? colors.tint : colors.tintSoft,
                     },
                   ]}
                 >
                   <Text
                     style={{
-                      color: selected
-                        ? scheme === 'dark'
-                          ? '#0F1612'
-                          : '#FFFFFF'
-                        : colors.text,
+                      color: selected ? colors.onTint : colors.text,
                       fontWeight: '700',
                     }}
                   >
@@ -244,9 +239,8 @@ const styles = StyleSheet.create({
   item: { fontSize: 15, lineHeight: 22 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
   },
 });

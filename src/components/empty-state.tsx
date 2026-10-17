@@ -1,3 +1,4 @@
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useColorScheme } from '@/components/use-color-scheme';
@@ -13,7 +14,10 @@ export function EmptyState({ title, description }: Props) {
   const colors = Colors[scheme];
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { backgroundColor: colors.tintSoft }]}>
+      <View style={[styles.iconWrap, { backgroundColor: colors.card }]}>
+        <FontAwesome name="cutlery" size={22} color={colors.tint} />
+      </View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       <Text style={[styles.description, { color: colors.muted }]}>{description}</Text>
     </View>
@@ -22,15 +26,26 @@ export function EmptyState({ title, description }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 8,
-    paddingVertical: 24,
+    gap: 10,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'flex-start',
+  },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   description: {
     fontSize: 15,
-    lineHeight: 21,
+    lineHeight: 22,
   },
 });

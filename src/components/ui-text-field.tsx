@@ -28,7 +28,7 @@ export function UiTextField({
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+      <Text style={[styles.label, { color: colors.muted }]}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.muted}
         underlineColorAndroid="transparent"
@@ -37,7 +37,7 @@ export function UiTextField({
           {
             color: colors.text,
             backgroundColor: colors.inputBackground,
-            borderColor: error ? colors.danger : colors.border,
+            borderColor: error ? colors.danger : 'transparent',
           },
           style,
         ]}
@@ -55,22 +55,25 @@ export function UiTextField({
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-    gap: 6,
+    gap: 8,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   input: {
     width: '100%',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 15 : 13,
     fontSize: 16,
-    minHeight: 48,
+    minHeight: 52,
   },
   helper: {
     fontSize: 12,
+    lineHeight: 16,
   },
 });

@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
@@ -20,6 +21,7 @@ type Props = {
   centered?: boolean;
   /** Use false inside tab screens that already show a native header. */
   includeTopSafeArea?: boolean;
+  gradient?: boolean;
 };
 
 export function Screen({
@@ -28,6 +30,7 @@ export function Screen({
   contentStyle,
   centered = false,
   includeTopSafeArea = true,
+  gradient = true,
 }: Props) {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
@@ -36,7 +39,7 @@ export function Screen({
 
   const padding = {
     paddingTop: includeTopSafeArea ? Math.max(insets.top, 12) : 12,
-    paddingBottom: Math.max(insets.bottom, 16),
+    paddingBottom: Math.max(insets.bottom, 20),
     paddingHorizontal: metrics.horizontalPadding,
   };
 
@@ -54,28 +57,38 @@ export function Screen({
     </View>
   );
 
+  const content = scroll ? (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      nestedScrollEnabled
+      contentContainerStyle={[
+        styles.scrollContent,
+        padding,
+        centered && styles.centered,
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      {body}
+    </ScrollView>
+  ) : (
+    <View style={[styles.flex, padding]}>{body}</View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: colors.background }]}
       behavior={keyboardBehavior}
     >
-      {scroll ? (
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          nestedScrollEnabled
-          contentContainerStyle={[
-            styles.scrollContent,
-            padding,
-            centered && styles.centered,
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {body}
-        </ScrollView>
-      ) : (
-        <View style={[styles.flex, padding]}>{body}</View>
-      )}
+      {gradient ? (
+        <LinearGradient
+          colors={[colors.heroFrom, colors.background]}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 0.55 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      {content}
     </KeyboardAvoidingView>
   );
 }
@@ -90,6 +103,6 @@ const styles = StyleSheet.create({
   },
   inner: {
     width: '100%',
-    gap: 20,
+    gap: 22,
   },
 });

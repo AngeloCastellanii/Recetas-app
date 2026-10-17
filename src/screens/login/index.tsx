@@ -1,3 +1,4 @@
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -7,7 +8,6 @@ import { UiButton } from '@/components/ui-button';
 import { UiTextField } from '@/components/ui-text-field';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
-import { LIMITS } from '@/constants/limits';
 import { useAuth } from '@/context/auth-context';
 import { getScreenMetrics, scaledFont } from '@/utils/layout';
 
@@ -40,23 +40,26 @@ export function LoginScreen() {
   return (
     <Screen centered>
       <View style={styles.header}>
+        <View style={[styles.badge, { backgroundColor: colors.tintSoft }]}>
+          <FontAwesome name="cutlery" size={28} color={colors.tint} />
+        </View>
         <Text
           style={[
             styles.brand,
             {
-              color: colors.tint,
-              fontSize: scaledFont(metrics.isCompact ? 30 : 36, metrics.scale),
+              color: colors.text,
+              fontSize: scaledFont(metrics.isCompact ? 34 : 40, metrics.scale),
             },
           ]}
         >
           Recetario
         </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Inicia sesión para gestionar tus recetas
+          Cocina, organiza y guarda tus ideas en un solo lugar
         </Text>
       </View>
 
-      <View style={styles.form}>
+      <View style={[styles.formCard, { backgroundColor: colors.card }]}>
         <UiTextField
           label="Correo"
           value={email}
@@ -66,8 +69,8 @@ export function LoginScreen() {
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
-          maxLength={LIMITS.email.max}
           placeholder="tu@correo.com"
+          helperText="Debe incluir @ y terminar en .com"
         />
         <UiTextField
           label="Contraseña"
@@ -76,7 +79,6 @@ export function LoginScreen() {
           secureTextEntry
           textContentType="password"
           autoComplete="password"
-          maxLength={LIMITS.password.max}
           placeholder="••••••••"
         />
 
@@ -98,15 +100,28 @@ export function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: 8 },
+  header: { gap: 10, alignItems: 'flex-start' },
+  badge: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
   brand: {
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 23,
   },
-  form: { gap: 14 },
+  formCard: {
+    gap: 14,
+    borderRadius: 24,
+    padding: 18,
+  },
   error: {
     fontSize: 14,
     fontWeight: '600',

@@ -1,7 +1,7 @@
 export const LIMITS = {
-  name: { min: 2, max: 40 },
-  email: { min: 5, max: 80 },
-  password: { min: 6, max: 32 },
+  name: { min: 2 },
+  email: { min: 6 },
+  password: { min: 6 },
   recipeTitle: { min: 2, max: 60 },
   recipeDescription: { max: 500 },
   ingredient: { min: 1, max: 80 },

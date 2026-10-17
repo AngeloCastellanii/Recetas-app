@@ -1,3 +1,4 @@
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -48,30 +49,31 @@ export function RegisterScreen() {
   return (
     <Screen centered>
       <View style={styles.header}>
+        <View style={[styles.badge, { backgroundColor: colors.tintSoft }]}>
+          <FontAwesome name="user-plus" size={24} color={colors.tint} />
+        </View>
         <Text
           style={[
             styles.brand,
             {
-              color: colors.tint,
-              fontSize: scaledFont(metrics.isCompact ? 28 : 32, metrics.scale),
+              color: colors.text,
+              fontSize: scaledFont(metrics.isCompact ? 30 : 34, metrics.scale),
             },
           ]}
         >
           Crear cuenta
         </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Regístrate para guardar tus recetas y grupos
+          Guarda tus recetas y organízalas en grupos
         </Text>
       </View>
 
-      <View style={styles.form}>
+      <View style={[styles.formCard, { backgroundColor: colors.card }]}>
         <UiTextField
           label="Nombre"
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
-          maxLength={LIMITS.name.max}
-          helperText={`${name.length}/${LIMITS.name.max}`}
           placeholder="Tu nombre"
         />
         <UiTextField
@@ -83,8 +85,8 @@ export function RegisterScreen() {
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
-          maxLength={LIMITS.email.max}
           placeholder="tu@correo.com"
+          helperText="Debe incluir @ y terminar en .com"
         />
         <UiTextField
           label="Contraseña"
@@ -93,8 +95,7 @@ export function RegisterScreen() {
           secureTextEntry
           textContentType="newPassword"
           autoComplete="password-new"
-          maxLength={LIMITS.password.max}
-          helperText={`Entre ${LIMITS.password.min} y ${LIMITS.password.max} caracteres`}
+          helperText={`Mínimo ${LIMITS.password.min} caracteres`}
           placeholder="••••••••"
         />
         <UiTextField
@@ -104,7 +105,6 @@ export function RegisterScreen() {
           secureTextEntry
           textContentType="newPassword"
           autoComplete="password-new"
-          maxLength={LIMITS.password.max}
           placeholder="••••••••"
         />
 
@@ -126,15 +126,28 @@ export function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: 8 },
+  header: { gap: 10 },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
   brand: {
     fontWeight: '800',
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 23,
   },
-  form: { gap: 14 },
+  formCard: {
+    gap: 14,
+    borderRadius: 24,
+    padding: 18,
+  },
   error: {
     fontSize: 14,
     fontWeight: '600',

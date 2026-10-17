@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,11 +11,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/empty-state';
+import { SearchField } from '@/components/search-field';
 import { UiButton } from '@/components/ui-button';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
+import { groupMatchesQuery } from '@/utils/filter';
 import { getScreenMetrics } from '@/utils/layout';
 import type { Group } from '@/types';
 
@@ -27,6 +29,7 @@ export function GroupsListScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const metrics = getScreenMetrics();
+  const [query, setQuery] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -36,10 +39,10 @@ export function GroupsListScreen() {
 
   const data = useMemo(
     () =>
-      (Array.isArray(groups) ? groups : []).filter(
-        (group) => Boolean(group?.id && group?.name)
-      ),
-    [groups]
+      (Array.isArray(groups) ? groups : [])
+        .filter((group) => Boolean(group?.id && group?.name))
+        .filter((group) => groupMatchesQuery(group, query)),
+    [groups, query]
   );
 
   const renderItem = ({ item }: { item: Group }) => {
@@ -90,6 +93,11 @@ export function GroupsListScreen() {
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           Organiza tus recetas en colecciones
         </Text>
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar grupo por nombre o descripción"
+        />
         <Text style={[styles.metaHeader, { color: colors.muted }]}>
           {data.length} {data.length === 1 ? 'grupo' : 'grupos'}
         </Text>

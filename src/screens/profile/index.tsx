@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { UiButton } from '@/components/ui-button';
@@ -8,10 +8,18 @@ import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
 import { useAuth } from '@/context/auth-context';
+import { usePreferences } from '@/context/preferences-context';
 import { getScreenMetrics, scaledFont } from '@/utils/layout';
+import type { ThemePreference } from '@/types';
+
+const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
+  { id: 'dark', label: 'Oscuro' },
+  { id: 'light', label: 'Claro' },
+];
 
 export function ProfileScreen() {
   const { user, logout, updateProfile, deleteAccount } = useAuth();
+  const { preferences, setTheme } = usePreferences();
   const scheme = useColorScheme();
   const colors = Colors[scheme];
   const metrics = getScreenMetrics();
@@ -119,11 +127,46 @@ export function ProfileScreen() {
           Perfil
         </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Edita tus datos o elimina tu cuenta
+          Edita tus datos, el tema o elimina tu cuenta
         </Text>
       </View>
 
       <View style={styles.form}>
+        <Text style={[styles.section, { color: colors.text }]}>Apariencia</Text>
+        <View style={styles.themeRow}>
+          {THEME_OPTIONS.map((option) => {
+            const selected = preferences.theme === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                onPress={() => {
+                  void setTheme(option.id);
+                }}
+                style={[
+                  styles.themeChip,
+                  {
+                    borderColor: selected ? colors.tint : colors.border,
+                    backgroundColor: selected ? colors.tint : colors.card,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: selected
+                      ? scheme === 'dark'
+                        ? '#0F1612'
+                        : '#FFFFFF'
+                      : colors.text,
+                    fontWeight: '700',
+                  }}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <UiTextField
           label="Nombre"
           value={name}
@@ -185,15 +228,16 @@ export function ProfileScreen() {
 
 const styles = StyleSheet.create({
   header: { gap: 6 },
-  title: {
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontSize: 15,
-  },
+  title: { fontWeight: '800' },
+  subtitle: { fontSize: 15 },
   form: { gap: 14 },
-  message: {
-    fontSize: 14,
-    fontWeight: '600',
+  section: { fontSize: 16, fontWeight: '700' },
+  themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  themeChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
+  message: { fontSize: 14, fontWeight: '600' },
 });

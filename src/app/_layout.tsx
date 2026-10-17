@@ -14,15 +14,18 @@ import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { DataProvider } from '@/context/data-context';
+import { PreferencesProvider, usePreferences } from '@/context/preferences-context';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootNavigator() {
-  const { isLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
+  const { isLoading: prefsLoading } = usePreferences();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
+  const isLoading = authLoading || prefsLoading;
 
   useEffect(() => {
     if (!isLoading) {
@@ -49,6 +52,7 @@ function RootNavigator() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(app)" />
         <Stack.Screen name="+not-found" />
@@ -60,11 +64,13 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <DataProvider>
-          <RootNavigator />
-        </DataProvider>
-      </AuthProvider>
+      <PreferencesProvider>
+        <AuthProvider>
+          <DataProvider>
+            <RootNavigator />
+          </DataProvider>
+        </AuthProvider>
+      </PreferencesProvider>
     </SafeAreaProvider>
   );
 }

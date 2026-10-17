@@ -10,6 +10,7 @@ import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
 import { useData } from '@/context/data-context';
 import { asRouteId } from '@/utils/params';
+import type { FieldErrors } from '@/types';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -31,6 +32,7 @@ export function GroupFormScreen({ mode }: Props) {
   const [name, setName] = useState(existing?.name ?? '');
   const [description, setDescription] = useState(existing?.description ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -42,12 +44,14 @@ export function GroupFormScreen({ mode }: Props) {
 
   const onSubmit = async () => {
     setError(null);
+    setFieldErrors({});
     setLoading(true);
     try {
       if (mode === 'create') {
         const result = await createGroup({ name, description });
         if (!result.ok) {
           setError(result.error);
+          setFieldErrors(result.fieldErrors ?? {});
           return;
         }
         router.replace(`/(app)/group/${result.group.id}` as Href);
@@ -62,6 +66,7 @@ export function GroupFormScreen({ mode }: Props) {
       const result = await updateGroup({ id: groupId, name, description });
       if (!result.ok) {
         setError(result.error);
+        setFieldErrors(result.fieldErrors ?? {});
         return;
       }
       router.back();
@@ -97,6 +102,7 @@ export function GroupFormScreen({ mode }: Props) {
           onChangeText={setName}
           maxLength={LIMITS.groupName.max}
           helperText={`${name.length}/${LIMITS.groupName.max}`}
+          error={fieldErrors.name}
           placeholder="Ej. Cenas rápidas"
         />
         <UiTextField
@@ -105,6 +111,7 @@ export function GroupFormScreen({ mode }: Props) {
           onChangeText={setDescription}
           maxLength={LIMITS.groupDescription.max}
           helperText={`${description.length}/${LIMITS.groupDescription.max}`}
+          error={fieldErrors.description}
           placeholder="Opcional"
           multiline
           style={styles.multiline}

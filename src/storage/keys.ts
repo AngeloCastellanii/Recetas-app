@@ -3,4 +3,5 @@ export const STORAGE_KEYS = {
   recipes: '@recetario/recipes',
   groups: '@recetario/groups',
   session: '@recetario/session',
+  preferences: '@recetario/preferences',
 } as const;

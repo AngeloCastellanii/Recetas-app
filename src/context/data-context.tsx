@@ -19,6 +19,7 @@ import {
   getUsers,
   isDuplicateGroupName,
   isDuplicateRecipeTitle,
+  seedDemoDataIfNeeded,
   syncRecipeGroupLinks,
   unlinkRecipeFromGroup as unlinkRecipeFromGroupInStore,
   unlinkRecipesFromAllGroups,
@@ -38,6 +39,7 @@ import {
   validateServings,
   validateStep,
 } from '@/utils/validation';
+import type { FieldErrors } from '@/types';
 
 type RecipeInput = {
   title: string;
@@ -47,7 +49,12 @@ type RecipeInput = {
   groupIds: string[];
   prepTimeMinutes: string;
   servings: string;
+  imageUri: string | null;
 };
+
+type Fail = { ok: false; error: string; fieldErrors?: FieldErrors };
+type GroupOk = { ok: true; group: Group };
+type RecipeOk = { ok: true; recipe: Recipe };
 
 type DataContextValue = {
   groups: Group[];
@@ -58,28 +65,24 @@ type DataContextValue = {
   createGroup: (input: {
     name: string;
     description: string;
-  }) => Promise<{ ok: true; group: Group } | { ok: false; error: string }>;
+  }) => Promise<GroupOk | Fail>;
   updateGroup: (input: {
     id: string;
     name: string;
     description: string;
-  }) => Promise<{ ok: true; group: Group } | { ok: false; error: string }>;
-  deleteGroup: (
-    id: string
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  }) => Promise<GroupOk | Fail>;
+  deleteGroup: (id: string) => Promise<{ ok: true } | Fail>;
   unlinkRecipeFromGroup: (
     groupId: string,
     recipeId: string
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
-  createRecipe: (
-    input: RecipeInput
-  ) => Promise<{ ok: true; recipe: Recipe } | { ok: false; error: string }>;
-  updateRecipe: (
-    input: RecipeInput & { id: string }
-  ) => Promise<{ ok: true; recipe: Recipe } | { ok: false; error: string }>;
-  deleteRecipe: (
-    id: string
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  ) => Promise<{ ok: true } | Fail>;
+  createRecipe: (input: RecipeInput) => Promise<RecipeOk | Fail>;
+  updateRecipe: (input: RecipeInput & { id: string }) => Promise<RecipeOk | Fail>;
+  deleteRecipe: (id: string) => Promise<{ ok: true } | Fail>;
+  toggleRecipeInGroup: (
+    recipeId: string,
+    groupId: string
+  ) => Promise<{ ok: true; linked: boolean } | Fail>;
   getGroupById: (id: string) => Group | undefined;
   getRecipeById: (id: string) => Recipe | undefined;
   getRecipesForGroup: (groupId: string) => Recipe[];
@@ -115,6 +118,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    await seedDemoDataIfNeeded();
     const [nextGroups, nextRecipes, nextUsers] = await Promise.all([
       getGroupsSorted(),
       getRecipesSorted(),
@@ -161,25 +165,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: 'Debes iniciar sesión.' };
       }
 
+      const fieldErrors: FieldErrors = {};
       const nameCheck = validateGroupName(input.name);
       if (!nameCheck.ok) {
-        return { ok: false as const, error: nameCheck.error ?? 'Nombre inválido.' };
+        fieldErrors.name = nameCheck.error ?? 'Nombre inválido.';
       }
 
       const descriptionCheck = validateGroupDescription(input.description);
       if (!descriptionCheck.ok) {
-        return {
-          ok: false as const,
-          error: descriptionCheck.error ?? 'Descripción inválida.',
-        };
+        fieldErrors.description = descriptionCheck.error ?? 'Descripción inválida.';
       }
 
       const name = normalizeText(input.name);
       const current = await getGroupsSorted();
-      if (isDuplicateGroupName(current, name)) {
+      if (!fieldErrors.name && isDuplicateGroupName(current, name)) {
+        fieldErrors.name = 'Ya existe un grupo con ese nombre.';
+      }
+
+      if (Object.keys(fieldErrors).length > 0) {
         return {
           ok: false as const,
-          error: 'Ya existe un grupo con ese nombre.',
+          error: 'Revisa los campos marcados.',
+          fieldErrors,
         };
       }
 
@@ -214,24 +221,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: 'Solo el dueño puede editar este grupo.' };
       }
 
+      const fieldErrors: FieldErrors = {};
       const nameCheck = validateGroupName(input.name);
       if (!nameCheck.ok) {
-        return { ok: false as const, error: nameCheck.error ?? 'Nombre inválido.' };
+        fieldErrors.name = nameCheck.error ?? 'Nombre inválido.';
       }
 
       const descriptionCheck = validateGroupDescription(input.description);
       if (!descriptionCheck.ok) {
-        return {
-          ok: false as const,
-          error: descriptionCheck.error ?? 'Descripción inválida.',
-        };
+        fieldErrors.description = descriptionCheck.error ?? 'Descripción inválida.';
       }
 
       const name = normalizeText(input.name);
-      if (isDuplicateGroupName(groups, name, input.id)) {
+      if (!fieldErrors.name && isDuplicateGroupName(groups, name, input.id)) {
+        fieldErrors.name = 'Ya existe un grupo con ese nombre.';
+      }
+
+      if (Object.keys(fieldErrors).length > 0) {
         return {
           ok: false as const,
-          error: 'Ya existe un grupo con ese nombre.',
+          error: 'Revisa los campos marcados.',
+          fieldErrors,
         };
       }
 
@@ -303,59 +313,54 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const validateRecipeInput = useCallback(
     (input: RecipeInput, excludeId?: string) => {
+      const fieldErrors: FieldErrors = {};
+
       const titleCheck = validateRecipeTitle(input.title);
       if (!titleCheck.ok) {
-        return { ok: false as const, error: titleCheck.error ?? 'Título inválido.' };
+        fieldErrors.title = titleCheck.error ?? 'Título inválido.';
       }
 
       const descriptionCheck = validateRecipeDescription(input.description);
       if (!descriptionCheck.ok) {
-        return {
-          ok: false as const,
-          error: descriptionCheck.error ?? 'Descripción inválida.',
-        };
+        fieldErrors.description = descriptionCheck.error ?? 'Descripción inválida.';
       }
 
       const title = normalizeText(input.title);
-      if (isDuplicateRecipeTitle(recipes, title, excludeId)) {
-        return {
-          ok: false as const,
-          error: 'Ya existe una receta con ese título.',
-        };
+      if (!fieldErrors.title && isDuplicateRecipeTitle(recipes, title, excludeId)) {
+        fieldErrors.title = 'Ya existe una receta con ese título.';
       }
 
       const ingredients = sanitizeList(input.ingredients, validateIngredient);
       if (!ingredients.ok) {
-        return {
-          ok: false as const,
-          error:
-            ingredients.error === 'Agrega al menos un elemento.'
-              ? 'Agrega al menos un ingrediente.'
-              : ingredients.error,
-        };
+        fieldErrors.ingredients =
+          ingredients.error === 'Agrega al menos un elemento.'
+            ? 'Agrega al menos un ingrediente.'
+            : (ingredients.error ?? 'Ingredientes inválidos.');
       }
 
       const steps = sanitizeList(input.steps, validateStep);
       if (!steps.ok) {
-        return {
-          ok: false as const,
-          error:
-            steps.error === 'Agrega al menos un elemento.'
-              ? 'Agrega al menos un paso.'
-              : steps.error,
-        };
+        fieldErrors.steps =
+          steps.error === 'Agrega al menos un elemento.'
+            ? 'Agrega al menos un paso.'
+            : (steps.error ?? 'Pasos inválidos.');
       }
 
       const prepCheck = validatePrepTime(input.prepTimeMinutes);
       if (!prepCheck.ok) {
-        return { ok: false as const, error: prepCheck.error ?? 'Tiempo inválido.' };
+        fieldErrors.prepTimeMinutes = prepCheck.error ?? 'Tiempo inválido.';
       }
 
       const servingsCheck = validateServings(input.servings);
       if (!servingsCheck.ok) {
+        fieldErrors.servings = servingsCheck.error ?? 'Porciones inválidas.';
+      }
+
+      if (Object.keys(fieldErrors).length > 0 || !ingredients.ok || !steps.ok) {
         return {
           ok: false as const,
-          error: servingsCheck.error ?? 'Porciones inválidas.',
+          error: 'Revisa los campos marcados.',
+          fieldErrors,
         };
       }
 
@@ -375,6 +380,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ? Number(input.prepTimeMinutes.trim())
             : null,
           servings: input.servings.trim() ? Number(input.servings.trim()) : null,
+          imageUri: input.imageUri ?? null,
         },
       };
     },
@@ -476,6 +482,53 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [user, recipes, refresh]
   );
 
+  const toggleRecipeInGroup = useCallback(
+    async (recipeId: string, groupId: string) => {
+      if (!user) {
+        return { ok: false as const, error: 'Debes iniciar sesión.' };
+      }
+
+      const group = groups.find((item) => item.id === groupId);
+      if (!group) {
+        return { ok: false as const, error: 'Grupo no encontrado.' };
+      }
+      if (group.ownerId !== user.id) {
+        return {
+          ok: false as const,
+          error: 'Solo puedes guardar recetas en tus propios grupos.',
+        };
+      }
+
+      const recipe = recipes.find((item) => item.id === recipeId);
+      if (!recipe) {
+        return { ok: false as const, error: 'Receta no encontrada.' };
+      }
+
+      const previous = recipe.groupIds ?? [];
+      const linked = previous.includes(groupId);
+      const next = linked
+        ? previous.filter((id) => id !== groupId)
+        : [...previous, groupId];
+
+      try {
+        await updateRecipeInStore({
+          ...recipe,
+          groupIds: next,
+          updatedAt: new Date().toISOString(),
+        });
+        await syncRecipeGroupLinks(recipeId, previous, next);
+        await refresh();
+        return { ok: true as const, linked: !linked };
+      } catch {
+        return {
+          ok: false as const,
+          error: 'No se pudo actualizar el grupo de la receta.',
+        };
+      }
+    },
+    [user, groups, recipes, refresh]
+  );
+
   const getAuthorName = useCallback(
     (authorId: string) => {
       if (!authorId) {
@@ -537,6 +590,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       createRecipe,
       updateRecipe,
       deleteRecipe,
+      toggleRecipeInGroup,
       getGroupById,
       getRecipeById,
       getRecipesForGroup,
@@ -555,6 +609,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       createRecipe,
       updateRecipe,
       deleteRecipe,
+      toggleRecipeInGroup,
       getGroupById,
       getRecipeById,
       getRecipesForGroup,

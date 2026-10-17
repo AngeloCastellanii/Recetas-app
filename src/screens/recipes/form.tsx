@@ -1,6 +1,7 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { UiButton } from '@/components/ui-button';
@@ -10,6 +11,7 @@ import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
 import { useData } from '@/context/data-context';
 import { asRouteId } from '@/utils/params';
+import type { FieldErrors } from '@/types';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -43,7 +45,9 @@ export function RecipeFormScreen({ mode }: Props) {
   const [servings, setServings] = useState(
     existing?.servings != null ? String(existing.servings) : ''
   );
+  const [imageUri, setImageUri] = useState<string | null>(existing?.imageUri ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -52,15 +56,14 @@ export function RecipeFormScreen({ mode }: Props) {
     }
     setTitle(existing.title);
     setDescription(existing.description);
-    setIngredients(
-      existing.ingredients?.length ? existing.ingredients : ['']
-    );
+    setIngredients(existing.ingredients?.length ? existing.ingredients : ['']);
     setSteps(existing.steps?.length ? existing.steps : ['']);
     setGroupIds(existing.groupIds ?? []);
     setPrepTimeMinutes(
       existing.prepTimeMinutes != null ? String(existing.prepTimeMinutes) : ''
     );
     setServings(existing.servings != null ? String(existing.servings) : '');
+    setImageUri(existing.imageUri ?? null);
   }, [existing?.id]);
 
   const toggleGroup = (id: string) => {
@@ -69,8 +72,38 @@ export function RecipeFormScreen({ mode }: Props) {
     );
   };
 
+  const pickImage = async (fromCamera: boolean) => {
+    const permission = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso para agregar una foto.');
+      return;
+    }
+
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.7,
+          allowsEditing: true,
+          aspect: [4, 3],
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.7,
+          allowsEditing: true,
+          aspect: [4, 3],
+        });
+
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const onSubmit = async () => {
     setError(null);
+    setFieldErrors({});
     setLoading(true);
     try {
       const payload = {
@@ -81,12 +114,14 @@ export function RecipeFormScreen({ mode }: Props) {
         groupIds,
         prepTimeMinutes,
         servings,
+        imageUri,
       };
 
       if (mode === 'create') {
         const result = await createRecipe(payload);
         if (!result.ok) {
           setError(result.error);
+          setFieldErrors(result.fieldErrors ?? {});
           return;
         }
         router.replace(`/(app)/recipe/${result.recipe.id}` as Href);
@@ -101,6 +136,7 @@ export function RecipeFormScreen({ mode }: Props) {
       const result = await updateRecipe({ id: recipeId, ...payload });
       if (!result.ok) {
         setError(result.error);
+        setFieldErrors(result.fieldErrors ?? {});
         return;
       }
       router.back();
@@ -130,12 +166,27 @@ export function RecipeFormScreen({ mode }: Props) {
       </View>
 
       <View style={styles.form}>
+        <Text style={[styles.section, { color: colors.text }]}>Foto</Text>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.preview} />
+        ) : (
+          <View style={[styles.preview, { backgroundColor: colors.border }]} />
+        )}
+        <View style={styles.imageActions}>
+          <UiButton label="Galería" variant="secondary" onPress={() => pickImage(false)} />
+          <UiButton label="Cámara" variant="secondary" onPress={() => pickImage(true)} />
+        </View>
+        {imageUri ? (
+          <UiButton label="Quitar foto" variant="danger" onPress={() => setImageUri(null)} />
+        ) : null}
+
         <UiTextField
           label="Título"
           value={title}
           onChangeText={setTitle}
           maxLength={LIMITS.recipeTitle.max}
           helperText={`${title.length}/${LIMITS.recipeTitle.max}`}
+          error={fieldErrors.title}
           placeholder="Ej. Pasta al pesto"
         />
         <UiTextField
@@ -144,6 +195,7 @@ export function RecipeFormScreen({ mode }: Props) {
           onChangeText={setDescription}
           maxLength={LIMITS.recipeDescription.max}
           helperText={`${description.length}/${LIMITS.recipeDescription.max}`}
+          error={fieldErrors.description}
           placeholder="Opcional"
           multiline
           style={styles.multiline}
@@ -154,6 +206,7 @@ export function RecipeFormScreen({ mode }: Props) {
           onChangeText={setPrepTimeMinutes}
           keyboardType="number-pad"
           maxLength={4}
+          error={fieldErrors.prepTimeMinutes}
           placeholder="Opcional"
         />
         <UiTextField
@@ -162,10 +215,14 @@ export function RecipeFormScreen({ mode }: Props) {
           onChangeText={setServings}
           keyboardType="number-pad"
           maxLength={3}
+          error={fieldErrors.servings}
           placeholder="Opcional"
         />
 
         <Text style={[styles.section, { color: colors.text }]}>Ingredientes</Text>
+        {fieldErrors.ingredients ? (
+          <Text style={{ color: colors.danger }}>{fieldErrors.ingredients}</Text>
+        ) : null}
         {ingredients.map((item, index) => (
           <View key={`ingredient-${index}`} style={styles.row}>
             <View style={styles.rowField}>
@@ -199,6 +256,9 @@ export function RecipeFormScreen({ mode }: Props) {
         />
 
         <Text style={[styles.section, { color: colors.text }]}>Pasos</Text>
+        {fieldErrors.steps ? (
+          <Text style={{ color: colors.danger }}>{fieldErrors.steps}</Text>
+        ) : null}
         {steps.map((item, index) => (
           <View key={`step-${index}`} style={styles.row}>
             <View style={styles.rowField}>
@@ -287,46 +347,22 @@ export function RecipeFormScreen({ mode }: Props) {
 
 const styles = StyleSheet.create({
   header: { gap: 6 },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontSize: 15,
-  },
+  title: { fontSize: 26, fontWeight: '800' },
+  subtitle: { fontSize: 15 },
   form: { gap: 14 },
-  section: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  multiline: {
-    minHeight: 88,
-    textAlignVertical: 'top',
-  },
-  row: {
-    gap: 8,
-  },
-  rowField: {
-    flex: 1,
-  },
-  removeBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  groups: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+  section: { fontSize: 17, fontWeight: '700', marginTop: 8 },
+  multiline: { minHeight: 88, textAlignVertical: 'top' },
+  row: { gap: 8 },
+  rowField: { flex: 1 },
+  removeBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
+  groups: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   groupChip: {
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  error: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  error: { fontSize: 14, fontWeight: '600' },
+  preview: { width: '100%', height: 180, borderRadius: 14 },
+  imageActions: { gap: 10 },
 });

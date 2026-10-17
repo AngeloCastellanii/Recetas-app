@@ -1,18 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { usePreferences } from '@/context/preferences-context';
 
-export function useColorScheme() {
-  const [hasHydrated, setHasHydrated] = useState(false);
-
-  useEffect(() => {
-    setHasHydrated(true);
-  }, []);
-
-  const colorScheme = useRNColorScheme();
-
-  if (hasHydrated) {
-    return colorScheme === 'dark' ? 'dark' : 'light';
-  }
-
-  return 'light';
+export function useColorScheme(): 'light' | 'dark' {
+  const { resolvedScheme } = usePreferences();
+  return resolvedScheme;
 }

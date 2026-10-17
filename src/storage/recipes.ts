@@ -4,9 +4,24 @@ import { readJson, writeJson } from '@/storage/json-store';
 import { normalizeKey } from '@/utils/normalize';
 import { sortByNameAsc } from '@/utils/sort';
 
+function normalizeRecipe(recipe: Recipe): Recipe {
+  return {
+    ...recipe,
+    title: recipe.title ?? '',
+    description: recipe.description ?? '',
+    ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+    steps: Array.isArray(recipe.steps) ? recipe.steps : [],
+    groupIds: Array.isArray(recipe.groupIds) ? recipe.groupIds : [],
+    imageUri: recipe.imageUri ?? null,
+    prepTimeMinutes:
+      typeof recipe.prepTimeMinutes === 'number' ? recipe.prepTimeMinutes : null,
+    servings: typeof recipe.servings === 'number' ? recipe.servings : null,
+  };
+}
+
 export async function getRecipes(): Promise<Recipe[]> {
   const recipes = await readJson<Recipe[]>(STORAGE_KEYS.recipes, []);
-  return Array.isArray(recipes) ? recipes : [];
+  return (Array.isArray(recipes) ? recipes : []).map(normalizeRecipe);
 }
 
 export async function getRecipesSorted(): Promise<Recipe[]> {
@@ -24,9 +39,9 @@ export async function findRecipeById(id: string): Promise<Recipe | null> {
 
 export async function createRecipe(recipe: Recipe): Promise<Recipe> {
   const recipes = await getRecipes();
-  recipes.push(recipe);
+  recipes.push(normalizeRecipe(recipe));
   await saveRecipes(recipes);
-  return recipe;
+  return normalizeRecipe(recipe);
 }
 
 export async function updateRecipe(updated: Recipe): Promise<Recipe> {
@@ -35,9 +50,9 @@ export async function updateRecipe(updated: Recipe): Promise<Recipe> {
   if (index < 0) {
     throw new Error('Receta no encontrada.');
   }
-  recipes[index] = updated;
+  recipes[index] = normalizeRecipe(updated);
   await saveRecipes(recipes);
-  return updated;
+  return recipes[index];
 }
 
 export async function deleteRecipeById(recipeId: string): Promise<void> {

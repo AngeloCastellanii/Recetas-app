@@ -17,6 +17,7 @@ export type Recipe = {
   groupIds: string[];
   prepTimeMinutes: number | null;
   servings: number | null;
+  imageUri: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -34,3 +35,14 @@ export type Group = {
 export type Session = {
   userId: string;
 };
+
+export type ThemePreference = 'light' | 'dark';
+
+export type AppPreferences = {
+  theme: ThemePreference;
+  onboardingDone: boolean;
+  demoSeeded: boolean;
+  favoritesByUser: Record<string, string[]>;
+};
+
+export type FieldErrors = Record<string, string>;

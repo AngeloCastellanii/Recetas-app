@@ -1,6 +1,6 @@
-import { useColorScheme as useColorSchemeCore } from 'react-native';
+import { usePreferences } from '@/context/preferences-context';
 
-export const useColorScheme = () => {
-  const coreScheme = useColorSchemeCore();
-  return coreScheme === 'dark' ? 'dark' : 'light';
-};
+export function useColorScheme(): 'light' | 'dark' {
+  const { resolvedScheme } = usePreferences();
+  return resolvedScheme;
+}

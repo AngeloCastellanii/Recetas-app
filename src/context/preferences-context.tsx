@@ -37,6 +37,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     theme: 'dark',
     onboardingDone: false,
     demoSeeded: false,
+    demoSeedVersion: 0,
     favoritesByUser: {},
   });
   const [isLoading, setIsLoading] = useState(true);

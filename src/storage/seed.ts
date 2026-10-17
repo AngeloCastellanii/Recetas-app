@@ -1,65 +1,53 @@
-import type { Recipe } from '@/types';
+import type { Group, Recipe } from '@/types';
 import { createGroup, getGroups } from '@/storage/groups';
 import { setDemoSeeded, getPreferences } from '@/storage/preferences';
 import { createRecipe, getRecipes } from '@/storage/recipes';
 import { syncRecipeGroupLinks } from '@/storage/relations';
-import { createUser, getUsers } from '@/storage/users';
+import { createUser, getUsers, updateUser } from '@/storage/users';
 import { createId } from '@/utils/id';
+import { normalizeText } from '@/utils/normalize';
 import { hashPassword } from '@/utils/password';
 
 const DEMO_EMAIL = 'demo@recetario.app';
+const DEMO_AUTHOR_NAME = 'Cortesía de la App';
+/** Subir este número cuando se agreguen más recetas demo. */
+export const DEMO_SEED_VERSION = 2;
 
-export async function seedDemoDataIfNeeded(): Promise<void> {
-  const prefs = await getPreferences();
-  if (prefs.demoSeeded) {
-    return;
-  }
+type DemoRecipeDraft = {
+  title: string;
+  description: string;
+  ingredients: string[];
+  steps: string[];
+  prepTimeMinutes: number;
+  servings: number;
+  groupNames: string[];
+};
 
-  const [recipes, groups] = await Promise.all([getRecipes(), getGroups()]);
-  if (recipes.length > 0 || groups.length > 0) {
-    await setDemoSeeded();
-    return;
-  }
-
-  const users = await getUsers();
-  let demoUser = users.find((user) => user.email === DEMO_EMAIL) ?? null;
-
-  if (!demoUser) {
-    const now = new Date().toISOString();
-    demoUser = await createUser({
-      id: createId('user'),
-      name: 'Chef Demo',
-      email: DEMO_EMAIL,
-      passwordHash: await hashPassword('demo1234'),
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-
-  const now = new Date().toISOString();
-
-  const breakfast = await createGroup({
-    id: createId('group'),
+const DEMO_GROUPS: { name: string; description: string }[] = [
+  {
     name: 'Desayunos',
     description: 'Ideas rápidas para empezar el día',
-    recipeIds: [],
-    ownerId: demoUser.id,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  const dinner = await createGroup({
-    id: createId('group'),
+  },
+  {
     name: 'Cenas ligeras',
     description: 'Platos sencillos para la noche',
-    recipeIds: [],
-    ownerId: demoUser.id,
-    createdAt: now,
-    updatedAt: now,
-  });
+  },
+  {
+    name: 'Almuerzos',
+    description: 'Comidas completas para el mediodía',
+  },
+  {
+    name: 'Postres',
+    description: 'Dulces fáciles para cualquier ocasión',
+  },
+  {
+    name: 'Bebidas',
+    description: 'Jugos, batidos y refrescos caseros',
+  },
+];
 
-  const omelette: Recipe = {
-    id: createId('recipe'),
+const DEMO_RECIPES: DemoRecipeDraft[] = [
+  {
     title: 'Tortilla de verduras',
     description: 'Una tortilla rápida con vegetales frescos.',
     ingredients: ['3 huevos', '1 pimentón', '1 cebolla', 'Sal al gusto'],
@@ -68,17 +56,11 @@ export async function seedDemoDataIfNeeded(): Promise<void> {
       'Saltea la cebolla y el pimentón 5 minutos.',
       'Bate los huevos, mézclalos y cocina a fuego medio.',
     ],
-    authorId: demoUser.id,
-    groupIds: [breakfast.id],
     prepTimeMinutes: 20,
     servings: 2,
-    imageUri: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  const salad: Recipe = {
-    id: createId('recipe'),
+    groupNames: ['Desayunos'],
+  },
+  {
     title: 'Ensalada mediterránea',
     description: 'Fresca, colorida y lista en minutos.',
     ingredients: ['Lechuga', 'Tomate', 'Pepino', 'Aceite de oliva', 'Queso feta'],
@@ -87,18 +69,682 @@ export async function seedDemoDataIfNeeded(): Promise<void> {
       'Agrégalos a un bowl grande.',
       'Aliña con aceite, sal y queso feta.',
     ],
-    authorId: demoUser.id,
-    groupIds: [dinner.id],
     prepTimeMinutes: 15,
     servings: 2,
-    imageUri: null,
-    createdAt: now,
-    updatedAt: now,
-  };
+    groupNames: ['Cenas ligeras'],
+  },
+  {
+    title: 'Arepas rellenas',
+    description: 'Arepas doradas con relleno de queso y carne mechada.',
+    ingredients: [
+      '2 tazas de harina de maíz',
+      'Agua tibia',
+      'Sal',
+      'Queso blanco',
+      'Carne mechada',
+    ],
+    steps: [
+      'Mezcla harina, agua y sal hasta formar una masa suave.',
+      'Forma arepas y cocínalas en budare o sartén.',
+      'Ábrelas y rellénalas con queso y carne.',
+    ],
+    prepTimeMinutes: 35,
+    servings: 4,
+    groupNames: ['Almuerzos', 'Desayunos'],
+  },
+  {
+    title: 'Pabellón criollo',
+    description: 'Clásico de carne, caraotas, arroz y plátano.',
+    ingredients: [
+      '500 g de carne para mechada',
+      '1 taza de caraotas negras',
+      '2 tazas de arroz',
+      '2 plátanos maduros',
+      'Cebolla, ajo y pimentón',
+    ],
+    steps: [
+      'Cocina la carne hasta que se deshilache fácilmente.',
+      'Prepara las caraotas y el arroz por separado.',
+      'Fríe el plátano y sirve todo junto.',
+    ],
+    prepTimeMinutes: 90,
+    servings: 4,
+    groupNames: ['Almuerzos'],
+  },
+  {
+    title: 'Pasta al pesto',
+    description: 'Pasta aromática con albahaca, ajo y queso.',
+    ingredients: [
+      '400 g de pasta',
+      '1 taza de albahaca',
+      '2 dientes de ajo',
+      'Aceite de oliva',
+      'Queso parmesano',
+    ],
+    steps: [
+      'Hierve la pasta al dente.',
+      'Licúa albahaca, ajo, aceite y queso.',
+      'Mezcla el pesto con la pasta caliente.',
+    ],
+    prepTimeMinutes: 25,
+    servings: 3,
+    groupNames: ['Almuerzos', 'Cenas ligeras'],
+  },
+  {
+    title: 'Sopa de pollo',
+    description: 'Caldo reconfortante con verduras y fideos.',
+    ingredients: [
+      '1 pechuga de pollo',
+      'Zanahoria',
+      'Papa',
+      'Apio',
+      'Fideos',
+      'Cilantro',
+    ],
+    steps: [
+      'Hierve el pollo con verduras hasta que esté tierno.',
+      'Retira el pollo, desmenúzalo y vuelve a la olla.',
+      'Agrega fideos y cocina 8 minutos más.',
+    ],
+    prepTimeMinutes: 45,
+    servings: 4,
+    groupNames: ['Almuerzos', 'Cenas ligeras'],
+  },
+  {
+    title: 'Arroz chino casero',
+    description: 'Arroz salteado con vegetales y salsa de soya.',
+    ingredients: [
+      '3 tazas de arroz cocido',
+      'Huevo',
+      'Zanahoria',
+      'Cebollín',
+      'Salsa de soya',
+      'Aceite',
+    ],
+    steps: [
+      'Saltea el huevo revuelto y reserva.',
+      'Saltea las verduras a fuego alto.',
+      'Agrega el arroz, la soya y el huevo.',
+    ],
+    prepTimeMinutes: 30,
+    servings: 3,
+    groupNames: ['Almuerzos'],
+  },
+  {
+    title: 'Tacos de pollo',
+    description: 'Tortillas suaves con pollo sazonado y vegetales.',
+    ingredients: [
+      'Tortillas de maíz',
+      'Pechuga de pollo',
+      'Cebolla',
+      'Cilantro',
+      'Limón',
+      'Salsa',
+    ],
+    steps: [
+      'Cocina y desmenúza el pollo con especias.',
+      'Calienta las tortillas.',
+      'Arma los tacos con pollo, cebolla y cilantro.',
+    ],
+    prepTimeMinutes: 30,
+    servings: 4,
+    groupNames: ['Almuerzos', 'Cenas ligeras'],
+  },
+  {
+    title: 'Hamburguesa casera',
+    description: 'Carne jugosa con pan tostado y vegetales frescos.',
+    ingredients: [
+      '500 g de carne molida',
+      'Pan de hamburguesa',
+      'Lechuga',
+      'Tomate',
+      'Queso',
+      'Mayonesa',
+    ],
+    steps: [
+      'Forma las hamburguesas y sazónalas.',
+      'Cocínalas a la plancha al punto deseado.',
+      'Arma con pan, queso y vegetales.',
+    ],
+    prepTimeMinutes: 35,
+    servings: 4,
+    groupNames: ['Almuerzos'],
+  },
+  {
+    title: 'Pizza margarita rápida',
+    description: 'Base sencilla con tomate, mozzarella y albahaca.',
+    ingredients: [
+      'Masa para pizza',
+      'Salsa de tomate',
+      'Mozzarella',
+      'Albahaca',
+      'Aceite de oliva',
+    ],
+    steps: [
+      'Extiende la masa y unta la salsa.',
+      'Agrega mozzarella y un hilo de aceite.',
+      'Hornea hasta dorar y termina con albahaca.',
+    ],
+    prepTimeMinutes: 40,
+    servings: 3,
+    groupNames: ['Cenas ligeras', 'Almuerzos'],
+  },
+  {
+    title: 'Pollo al horno con papas',
+    description: 'Bandeja completa para toda la familia.',
+    ingredients: [
+      'Muslos de pollo',
+      'Papas',
+      'Ajo',
+      'Limón',
+      'Orégano',
+      'Aceite',
+    ],
+    steps: [
+      'Marina el pollo con ajo, limón y orégano.',
+      'Colócalo en una bandeja con papas.',
+      'Hornea a 200 °C hasta que esté dorado.',
+    ],
+    prepTimeMinutes: 70,
+    servings: 5,
+    groupNames: ['Almuerzos'],
+  },
+  {
+    title: 'Ceviche de pescado',
+    description: 'Pescado marinado en limón con cebolla y cilantro.',
+    ingredients: [
+      'Pescado blanco fresco',
+      'Limones',
+      'Cebolla morada',
+      'Cilantro',
+      'Ají dulce',
+      'Sal',
+    ],
+    steps: [
+      'Corta el pescado en cubos pequeños.',
+      'Cúbrelo con jugo de limón y deja curar.',
+      'Mezcla con cebolla, cilantro y ají.',
+    ],
+    prepTimeMinutes: 35,
+    servings: 3,
+    groupNames: ['Cenas ligeras'],
+  },
+  {
+    title: 'Empanadas de queso',
+    description: 'Masa crujiente rellena de queso derretido.',
+    ingredients: [
+      'Harina de maíz',
+      'Agua',
+      'Sal',
+      'Queso blanco',
+      'Aceite para freír',
+    ],
+    steps: [
+      'Prepara la masa y forma discos.',
+      'Rellena con queso y cierra bien.',
+      'Fríe hasta que queden doradas.',
+    ],
+    prepTimeMinutes: 40,
+    servings: 6,
+    groupNames: ['Desayunos', 'Cenas ligeras'],
+  },
+  {
+    title: 'Panqueques de avena',
+    description: 'Desayuno esponjoso y nutritivo.',
+    ingredients: [
+      '1 taza de avena',
+      '1 huevo',
+      '1/2 taza de leche',
+      '1 cucharadita de polvo de hornear',
+      'Miel',
+    ],
+    steps: [
+      'Licúa todos los ingredientes hasta obtener una mezcla homogénea.',
+      'Cocina porciones en sartén antiadherente.',
+      'Sirve con miel o frutas.',
+    ],
+    prepTimeMinutes: 20,
+    servings: 2,
+    groupNames: ['Desayunos'],
+  },
+  {
+    title: 'Avena overnight',
+    description: 'Avena lista desde la noche anterior.',
+    ingredients: [
+      '1/2 taza de avena',
+      'Leche o yogurt',
+      'Semillas de chía',
+      'Fruta picada',
+      'Miel',
+    ],
+    steps: [
+      'Mezcla avena, leche y chía en un frasco.',
+      'Refrigera toda la noche.',
+      'Al día siguiente agrega fruta y miel.',
+    ],
+    prepTimeMinutes: 10,
+    servings: 1,
+    groupNames: ['Desayunos'],
+  },
+  {
+    title: 'Huevos revueltos cremosos',
+    description: 'Clásico de desayuno en cinco minutos.',
+    ingredients: ['3 huevos', 'Mantequilla', 'Sal', 'Pimienta', 'Pan tostado'],
+    steps: [
+      'Bate los huevos con sal.',
+      'Cocínalos a fuego bajo con mantequilla.',
+      'Sirve con pan tostado.',
+    ],
+    prepTimeMinutes: 10,
+    servings: 1,
+    groupNames: ['Desayunos'],
+  },
+  {
+    title: 'Tostadas francesas',
+    description: 'Pan remojado en huevo, dorado y dulce.',
+    ingredients: [
+      '4 rebanadas de pan',
+      '2 huevos',
+      'Leche',
+      'Canela',
+      'Azúcar o miel',
+    ],
+    steps: [
+      'Bate huevo, leche y canela.',
+      'Remoja el pan y dora en sartén.',
+      'Espolvorea azúcar o baña con miel.',
+    ],
+    prepTimeMinutes: 15,
+    servings: 2,
+    groupNames: ['Desayunos'],
+  },
+  {
+    title: 'Smoothie de mango',
+    description: 'Batido tropical refrescante.',
+    ingredients: ['1 mango', '1/2 taza de yogurt', 'Hielo', 'Miel al gusto'],
+    steps: [
+      'Pela y corta el mango.',
+      'Licúa con yogurt, hielo y miel.',
+      'Sirve frío de inmediato.',
+    ],
+    prepTimeMinutes: 8,
+    servings: 2,
+    groupNames: ['Bebidas', 'Desayunos'],
+  },
+  {
+    title: 'Limonada de hierbabuena',
+    description: 'Refresco natural para el calor.',
+    ingredients: [
+      '4 limones',
+      'Hojas de hierbabuena',
+      'Azúcar o miel',
+      'Agua fría',
+      'Hielo',
+    ],
+    steps: [
+      'Exprime los limones.',
+      'Machaca la hierbabuena con el endulzante.',
+      'Agrega agua e hielo y mezcla.',
+    ],
+    prepTimeMinutes: 10,
+    servings: 4,
+    groupNames: ['Bebidas'],
+  },
+  {
+    title: 'Chocolate caliente',
+    description: 'Bebida reconfortante para la tarde o noche.',
+    ingredients: [
+      '2 tazas de leche',
+      'Chocolate de mesa',
+      'Canela',
+      'Azúcar al gusto',
+    ],
+    steps: [
+      'Calienta la leche con canela.',
+      'Agrega el chocolate y remueve hasta disolver.',
+      'Endulza y sirve caliente.',
+    ],
+    prepTimeMinutes: 12,
+    servings: 2,
+    groupNames: ['Bebidas'],
+  },
+  {
+    title: 'Brownie de chocolate',
+    description: 'Cuadrados húmedos y con intenso sabor a cacao.',
+    ingredients: [
+      '200 g de chocolate',
+      '100 g de mantequilla',
+      '3/4 taza de azúcar',
+      '2 huevos',
+      '1/2 taza de harina',
+    ],
+    steps: [
+      'Derrite chocolate con mantequilla.',
+      'Mezcla con azúcar, huevos y harina.',
+      'Hornea a 180 °C unos 25 minutos.',
+    ],
+    prepTimeMinutes: 45,
+    servings: 8,
+    groupNames: ['Postres'],
+  },
+  {
+    title: 'Flan de vainilla',
+    description: 'Postre cremoso con caramelo casero.',
+    ingredients: [
+      '1 lata de leche condensada',
+      '1 lata de leche evaporada',
+      '3 huevos',
+      'Vainilla',
+      'Azúcar para el caramelo',
+    ],
+    steps: [
+      'Prepara el caramelo y úntalo en el molde.',
+      'Licúa el resto de ingredientes.',
+      'Hornea a baño María hasta que cuaje.',
+    ],
+    prepTimeMinutes: 80,
+    servings: 6,
+    groupNames: ['Postres'],
+  },
+  {
+    title: 'Galletas de avena',
+    description: 'Galletas crujientes con avena y pasas.',
+    ingredients: [
+      '1 taza de avena',
+      '1/2 taza de harina',
+      'Mantequilla',
+      'Azúcar morena',
+      'Pasas',
+      '1 huevo',
+    ],
+    steps: [
+      'Mezcla todos los ingredientes hasta formar una masa.',
+      'Forma bolitas y aplánalas en una bandeja.',
+      'Hornea a 180 °C unos 12 minutos.',
+    ],
+    prepTimeMinutes: 30,
+    servings: 12,
+    groupNames: ['Postres', 'Desayunos'],
+  },
+  {
+    title: 'Ensalada de frutas',
+    description: 'Mezcla colorida y ligera para cualquier momento.',
+    ingredients: [
+      'Banano',
+      'Manzana',
+      'Uvas',
+      'Naranja',
+      'Miel',
+      'Jugo de limón',
+    ],
+    steps: [
+      'Lava y corta todas las frutas.',
+      'Mézalas en un bowl.',
+      'Aliña con miel y un toque de limón.',
+    ],
+    prepTimeMinutes: 12,
+    servings: 3,
+    groupNames: ['Postres', 'Desayunos', 'Cenas ligeras'],
+  },
+  {
+    title: 'Guacamole',
+    description: 'Dip cremoso de aguacate para acompañar.',
+    ingredients: [
+      '2 aguacates',
+      'Tomate',
+      'Cebolla',
+      'Limón',
+      'Cilantro',
+      'Sal',
+    ],
+    steps: [
+      'Machaca los aguacates.',
+      'Agrega tomate, cebolla y cilantro picados.',
+      'Aliña con limón y sal.',
+    ],
+    prepTimeMinutes: 10,
+    servings: 3,
+    groupNames: ['Cenas ligeras'],
+  },
+  {
+    title: 'Arroz con pollo',
+    description: 'Plato completo con sofrito y vegetales.',
+    ingredients: [
+      'Pechuga de pollo',
+      '2 tazas de arroz',
+      'Pimentón',
+      'Cebolla',
+      'Ajo',
+      'Caldo de pollo',
+    ],
+    steps: [
+      'Dora el pollo y reserva.',
+      'Haz un sofrito y agrega el arroz.',
+      'Vierte el caldo, agrega el pollo y cocina hasta secar.',
+    ],
+    prepTimeMinutes: 55,
+    servings: 4,
+    groupNames: ['Almuerzos'],
+  },
+  {
+    title: 'Ensalada César',
+    description: 'Lechuga, crutones y aderezo cremoso.',
+    ingredients: [
+      'Lechuga romana',
+      'Crutones',
+      'Queso parmesano',
+      'Pechuga de pollo',
+      'Aderezo César',
+    ],
+    steps: [
+      'Lava y corta la lechuga.',
+      'Agrega pollo cocido en tiras.',
+      'Mezcla con aderezo, crutones y queso.',
+    ],
+    prepTimeMinutes: 20,
+    servings: 2,
+    groupNames: ['Cenas ligeras', 'Almuerzos'],
+  },
+  {
+    title: 'Quesadillas de pollo',
+    description: 'Tortillas rellenas y doradas por fuera.',
+    ingredients: [
+      'Tortillas de harina',
+      'Pollo desmenuzado',
+      'Queso rallado',
+      'Pimentón',
+      'Crema agria',
+    ],
+    steps: [
+      'Rellena las tortillas con pollo y queso.',
+      'Dóralas en sartén por ambos lados.',
+      'Sirve con crema o salsa.',
+    ],
+    prepTimeMinutes: 20,
+    servings: 3,
+    groupNames: ['Cenas ligeras', 'Desayunos'],
+  },
+  {
+    title: 'Wrap de atún',
+    description: 'Wrap fresco ideal para llevar.',
+    ingredients: [
+      'Tortilla grande',
+      'Atún en lata',
+      'Mayonesa',
+      'Lechuga',
+      'Tomate',
+      'Maíz',
+    ],
+    steps: [
+      'Mezcla el atún con mayonesa y maíz.',
+      'Extiende sobre la tortilla con vegetales.',
+      'Enrolla bien y corta por la mitad.',
+    ],
+    prepTimeMinutes: 12,
+    servings: 1,
+    groupNames: ['Almuerzos', 'Cenas ligeras'],
+  },
+  {
+    title: 'Batido de fresa y banano',
+    description: 'Bebida dulce y energética.',
+    ingredients: [
+      '1 taza de fresas',
+      '1 banano',
+      'Leche',
+      'Hielo',
+      'Miel opcional',
+    ],
+    steps: [
+      'Lava las fresas y pela el banano.',
+      'Licúa con leche e hielo.',
+      'Endulza si lo deseas y sirve.',
+    ],
+    prepTimeMinutes: 7,
+    servings: 2,
+    groupNames: ['Bebidas', 'Desayunos'],
+  },
+  {
+    title: 'Mousse de chocolate',
+    description: 'Postre aireado y muy chocolatoso.',
+    ingredients: [
+      '200 g de chocolate',
+      '3 huevos',
+      '2 cucharadas de azúcar',
+      'Crema de leche',
+    ],
+    steps: [
+      'Derrite el chocolate y deja entibiar.',
+      'Incorpora yemas y luego claras batidas.',
+      'Refrigera al menos 2 horas.',
+    ],
+    prepTimeMinutes: 25,
+    servings: 4,
+    groupNames: ['Postres'],
+  },
+  {
+    title: 'Sándwich club',
+    description: 'Triple de pan con pollo, tocino y vegetales.',
+    ingredients: [
+      'Pan de molde',
+      'Pechuga de pollo',
+      'Tocino',
+      'Lechuga',
+      'Tomate',
+      'Mayonesa',
+    ],
+    steps: [
+      'Tuesta el pan.',
+      'Arma capas con pollo, tocino y vegetales.',
+      'Corta en triángulos y sirve.',
+    ],
+    prepTimeMinutes: 20,
+    servings: 2,
+    groupNames: ['Almuerzos', 'Desayunos'],
+  },
+];
 
-  await createRecipe(omelette);
-  await createRecipe(salad);
-  await syncRecipeGroupLinks(omelette.id, [], omelette.groupIds);
-  await syncRecipeGroupLinks(salad.id, [], salad.groupIds);
-  await setDemoSeeded();
+async function ensureDemoUser() {
+  const users = await getUsers();
+  let demoUser = users.find((user) => user.email === DEMO_EMAIL) ?? null;
+
+  if (!demoUser) {
+    const now = new Date().toISOString();
+    demoUser = await createUser({
+      id: createId('user'),
+      name: DEMO_AUTHOR_NAME,
+      email: DEMO_EMAIL,
+      passwordHash: await hashPassword('demo1234'),
+      createdAt: now,
+      updatedAt: now,
+    });
+    return demoUser;
+  }
+
+  if (demoUser.name !== DEMO_AUTHOR_NAME) {
+    demoUser = await updateUser({
+      ...demoUser,
+      name: DEMO_AUTHOR_NAME,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  return demoUser;
+}
+
+async function ensureDemoGroups(ownerId: string): Promise<Map<string, Group>> {
+  const existing = await getGroups();
+  const byName = new Map(
+    existing.map((group) => [normalizeText(group.name).toLowerCase(), group])
+  );
+  const result = new Map<string, Group>();
+
+  for (const draft of DEMO_GROUPS) {
+    const key = normalizeText(draft.name).toLowerCase();
+    let group = byName.get(key);
+
+    if (!group) {
+      const now = new Date().toISOString();
+      group = await createGroup({
+        id: createId('group'),
+        name: draft.name,
+        description: draft.description,
+        recipeIds: [],
+        ownerId,
+        createdAt: now,
+        updatedAt: now,
+      });
+      byName.set(key, group);
+    }
+
+    result.set(draft.name, group);
+  }
+
+  return result;
+}
+
+export async function seedDemoDataIfNeeded(): Promise<void> {
+  const prefs = await getPreferences();
+  if (prefs.demoSeedVersion >= DEMO_SEED_VERSION) {
+    return;
+  }
+
+  const demoUser = await ensureDemoUser();
+  const groupsByName = await ensureDemoGroups(demoUser.id);
+  const existingRecipes = await getRecipes();
+  const titles = new Set(
+    existingRecipes.map((recipe) => normalizeText(recipe.title).toLowerCase())
+  );
+
+  for (const draft of DEMO_RECIPES) {
+    const key = normalizeText(draft.title).toLowerCase();
+    if (titles.has(key)) {
+      continue;
+    }
+
+    const groupIds = draft.groupNames
+      .map((name) => groupsByName.get(name)?.id)
+      .filter((id): id is string => Boolean(id));
+
+    const now = new Date().toISOString();
+    const recipe: Recipe = {
+      id: createId('recipe'),
+      title: draft.title,
+      description: draft.description,
+      ingredients: draft.ingredients,
+      steps: draft.steps,
+      authorId: demoUser.id,
+      groupIds,
+      prepTimeMinutes: draft.prepTimeMinutes,
+      servings: draft.servings,
+      imageUri: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await createRecipe(recipe);
+    await syncRecipeGroupLinks(recipe.id, [], recipe.groupIds);
+    titles.add(key);
+  }
+
+  await setDemoSeeded(DEMO_SEED_VERSION);
 }

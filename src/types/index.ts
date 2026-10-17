@@ -42,6 +42,8 @@ export type AppPreferences = {
   theme: ThemePreference;
   onboardingDone: boolean;
   demoSeeded: boolean;
+  /** Incrementar cuando se amplíe el catálogo demo para reinyectar recetas nuevas. */
+  demoSeedVersion: number;
   favoritesByUser: Record<string, string[]>;
 };
 

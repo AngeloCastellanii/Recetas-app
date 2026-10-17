@@ -6,6 +6,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   theme: 'dark',
   onboardingDone: false,
   demoSeeded: false,
+  demoSeedVersion: 0,
   favoritesByUser: {},
 };
 
@@ -26,6 +27,8 @@ export async function getPreferences(): Promise<AppPreferences> {
     theme: normalizeTheme(prefs?.theme),
     onboardingDone: Boolean(prefs?.onboardingDone),
     demoSeeded: Boolean(prefs?.demoSeeded),
+    demoSeedVersion:
+      typeof prefs?.demoSeedVersion === 'number' ? prefs.demoSeedVersion : 0,
     favoritesByUser:
       prefs?.favoritesByUser && typeof prefs.favoritesByUser === 'object'
         ? prefs.favoritesByUser
@@ -51,9 +54,14 @@ export async function setOnboardingDone(): Promise<AppPreferences> {
   return next;
 }
 
-export async function setDemoSeeded(): Promise<AppPreferences> {
+export async function setDemoSeeded(version?: number): Promise<AppPreferences> {
   const current = await getPreferences();
-  const next = { ...current, demoSeeded: true };
+  const next = {
+    ...current,
+    demoSeeded: true,
+    demoSeedVersion:
+      typeof version === 'number' ? version : current.demoSeedVersion,
+  };
   await savePreferences(next);
   return next;
 }

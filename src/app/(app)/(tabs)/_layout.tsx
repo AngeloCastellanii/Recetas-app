@@ -1,9 +1,17 @@
-import { SymbolView } from 'expo-symbols';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
+import type { ComponentProps } from 'react';
 
 import { useClientOnlyValue } from '@/components/use-client-only-value';
 import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
+
+function TabBarIcon(props: {
+  name: ComponentProps<typeof FontAwesome>['name'];
+  color: string;
+}) {
+  return <FontAwesome size={24} style={{ marginBottom: -2 }} {...props} />;
+}
 
 export default function TabsLayout() {
   const colorScheme = useColorScheme();
@@ -20,15 +28,7 @@ export default function TabsLayout() {
         options={{
           title: 'Recetas',
           tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'fork.knife',
-                android: 'restaurant',
-                web: 'restaurant',
-              }}
-              tintColor={color}
-              size={26}
-            />
+            <TabBarIcon name="cutlery" color={String(color)} />
           ),
         }}
       />
@@ -37,15 +37,7 @@ export default function TabsLayout() {
         options={{
           title: 'Mis recetas',
           tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'person.crop.rectangle',
-                android: 'person',
-                web: 'person',
-              }}
-              tintColor={color}
-              size={26}
-            />
+            <TabBarIcon name="user" color={String(color)} />
           ),
         }}
       />
@@ -55,15 +47,7 @@ export default function TabsLayout() {
           title: 'Grupos',
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'folder',
-                android: 'folder',
-                web: 'folder',
-              }}
-              tintColor={color}
-              size={26}
-            />
+            <TabBarIcon name="folder-open" color={String(color)} />
           ),
         }}
       />
@@ -72,15 +56,7 @@ export default function TabsLayout() {
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'person.circle',
-                android: 'account_circle',
-                web: 'account_circle',
-              }}
-              tintColor={color}
-              size={26}
-            />
+            <TabBarIcon name="cog" color={String(color)} />
           ),
         }}
       />

@@ -76,12 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        setIsLoading(false);
+      }
+    }, 2500);
 
     (async () => {
       try {
         await refreshUser();
       } finally {
         if (mounted) {
+          clearTimeout(timeout);
           setIsLoading(false);
         }
       }
@@ -89,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
     };
   }, [refreshUser]);
 

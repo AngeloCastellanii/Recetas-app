@@ -16,6 +16,7 @@ import {
   deleteRecipeById,
   getGroupsSorted,
   getRecipesSorted,
+  getUsers,
   isDuplicateGroupName,
   isDuplicateRecipeTitle,
   syncRecipeGroupLinks,
@@ -53,6 +54,7 @@ type DataContextValue = {
   recipes: Recipe[];
   isLoading: boolean;
   refresh: () => Promise<void>;
+  getAuthorName: (authorId: string) => string;
   createGroup: (input: {
     name: string;
     description: string;
@@ -109,15 +111,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [nextGroups, nextRecipes] = await Promise.all([
+    const [nextGroups, nextRecipes, nextUsers] = await Promise.all([
       getGroupsSorted(),
       getRecipesSorted(),
+      getUsers(),
     ]);
-    setGroups(nextGroups);
-    setRecipes(nextRecipes);
+    setGroups(Array.isArray(nextGroups) ? nextGroups : []);
+    setRecipes(Array.isArray(nextRecipes) ? nextRecipes : []);
+    const names: Record<string, string> = {};
+    for (const item of Array.isArray(nextUsers) ? nextUsers : []) {
+      if (item?.id && item?.name) {
+        names[item.id] = item.name;
+      }
+    }
+    setAuthorNames(names);
   }, []);
 
   useEffect(() => {
@@ -130,6 +141,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         } else {
           setGroups([]);
           setRecipes([]);
+          setAuthorNames({});
         }
       } finally {
         if (mounted) {
@@ -464,6 +476,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [user, recipes, refresh]
   );
 
+  const getAuthorName = useCallback(
+    (authorId: string) => {
+      if (!authorId) {
+        return 'Usuario';
+      }
+      if (user?.id === authorId) {
+        return 'Tú';
+      }
+      return authorNames[authorId] || 'Usuario';
+    },
+    [authorNames, user?.id]
+  );
+
   const getGroupById = useCallback(
     (id: string) => groups.find((group) => group.id === id),
     [groups]
@@ -504,6 +529,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       recipes,
       isLoading,
       refresh,
+      getAuthorName,
       createGroup,
       updateGroup,
       deleteGroup,
@@ -521,6 +547,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       recipes,
       isLoading,
       refresh,
+      getAuthorName,
       createGroup,
       updateGroup,
       deleteGroup,

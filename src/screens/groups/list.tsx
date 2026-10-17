@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -34,13 +34,21 @@ export function GroupsListScreen() {
     }, [refresh])
   );
 
+  const data = useMemo(
+    () =>
+      (Array.isArray(groups) ? groups : []).filter(
+        (group) => Boolean(group?.id && group?.name)
+      ),
+    [groups]
+  );
+
   const renderItem = ({ item }: { item: Group }) => {
     const count = item.recipeIds?.length ?? 0;
     const isOwner = item.ownerId === user?.id;
 
     return (
       <Pressable
-        onPress={() => router.push(`/(app)/group/${item.id}`)}
+        onPress={() => router.push(`/(app)/group/${item.id}` as Href)}
         style={({ pressed }) => [
           styles.card,
           {
@@ -82,9 +90,12 @@ export function GroupsListScreen() {
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           Organiza tus recetas en colecciones
         </Text>
+        <Text style={[styles.metaHeader, { color: colors.muted }]}>
+          {data.length} {data.length === 1 ? 'grupo' : 'grupos'}
+        </Text>
         <UiButton
           label="Nuevo grupo"
-          onPress={() => router.push('/(app)/group/new')}
+          onPress={() => router.push('/(app)/group/new' as Href)}
         />
       </View>
 
@@ -92,7 +103,7 @@ export function GroupsListScreen() {
         <ActivityIndicator style={styles.loader} color={colors.tint} />
       ) : (
         <FlatList
-          data={groups}
+          data={data}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{
@@ -125,6 +136,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
+  },
+  metaHeader: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   loader: { marginTop: 40 },
   card: {

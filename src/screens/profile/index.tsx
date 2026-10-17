@@ -91,6 +91,19 @@ export function ProfileScreen() {
     }
   };
 
+  const onLogout = () => {
+    Alert.alert('Cerrar sesión', '¿Seguro que quieres salir de tu cuenta?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Salir',
+        style: 'destructive',
+        onPress: () => {
+          void logout();
+        },
+      },
+    ]);
+  };
+
   return (
     <Screen includeTopSafeArea={false}>
       <View style={styles.header}>
@@ -158,13 +171,7 @@ export function ProfileScreen() {
         ) : null}
 
         <UiButton label="Guardar cambios" onPress={onSave} loading={saving} />
-        <UiButton
-          label="Cerrar sesión"
-          variant="secondary"
-          onPress={() => {
-            void logout();
-          }}
-        />
+        <UiButton label="Cerrar sesión" variant="secondary" onPress={onLogout} />
         <UiButton
           label="Borrar cuenta"
           variant="danger"

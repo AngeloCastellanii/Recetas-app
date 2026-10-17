@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
 import { useData } from '@/context/data-context';
+import { asRouteId } from '@/utils/params';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -21,7 +22,7 @@ export function GroupFormScreen({ mode }: Props) {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
 
-  const groupId = typeof params.id === 'string' ? params.id : undefined;
+  const groupId = asRouteId(params.id) || undefined;
   const existing = useMemo(
     () => (groupId ? getGroupById(groupId) : undefined),
     [groupId, getGroupById]
@@ -49,7 +50,7 @@ export function GroupFormScreen({ mode }: Props) {
           setError(result.error);
           return;
         }
-        router.replace(`/(app)/group/${result.group.id}`);
+        router.replace(`/(app)/group/${result.group.id}` as Href);
         return;
       }
 

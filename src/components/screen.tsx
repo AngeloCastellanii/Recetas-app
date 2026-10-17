@@ -63,6 +63,7 @@ export function Screen({
         <ScrollView
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          nestedScrollEnabled
           contentContainerStyle={[
             styles.scrollContent,
             padding,

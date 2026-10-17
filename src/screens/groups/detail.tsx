@@ -15,11 +15,12 @@ import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
+import { asRouteId } from '@/utils/params';
 
 export function GroupDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const groupId = typeof id === 'string' ? id : '';
+  const groupId = asRouteId(id);
   const { user } = useAuth();
   const {
     getGroupById,
@@ -37,8 +38,8 @@ export function GroupDetailScreen() {
     }, [refresh])
   );
 
-  const group = getGroupById(groupId);
-  const recipes = getRecipesForGroup(groupId);
+  const group = groupId ? getGroupById(groupId) : undefined;
+  const recipes = groupId ? getRecipesForGroup(groupId) : [];
   const isOwner = Boolean(group && user && group.ownerId === user.id);
 
   const onDelete = () => {
@@ -119,7 +120,7 @@ export function GroupDetailScreen() {
           <UiButton
             label="Editar"
             variant="secondary"
-            onPress={() => router.push(`/(app)/group/edit/${group.id}`)}
+            onPress={() => router.push(`/(app)/group/edit/${group.id}` as Href)}
           />
           <UiButton label="Borrar grupo" variant="danger" onPress={onDelete} />
         </View>

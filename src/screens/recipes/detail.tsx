@@ -8,13 +8,20 @@ import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { useAuth } from '@/context/auth-context';
 import { useData } from '@/context/data-context';
+import { asRouteId } from '@/utils/params';
 
 export function RecipeDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const recipeId = typeof id === 'string' ? id : '';
+  const recipeId = asRouteId(id);
   const { user } = useAuth();
-  const { getRecipeById, getGroupsForRecipe, deleteRecipe, refresh } = useData();
+  const {
+    getRecipeById,
+    getGroupsForRecipe,
+    getAuthorName,
+    deleteRecipe,
+    refresh,
+  } = useData();
   const scheme = useColorScheme();
   const colors = Colors[scheme];
 
@@ -24,8 +31,8 @@ export function RecipeDetailScreen() {
     }, [refresh])
   );
 
-  const recipe = getRecipeById(recipeId);
-  const linkedGroups = getGroupsForRecipe(recipeId);
+  const recipe = recipeId ? getRecipeById(recipeId) : undefined;
+  const linkedGroups = recipeId ? getGroupsForRecipe(recipeId) : [];
   const isOwner = Boolean(recipe && user && recipe.authorId === user.id);
 
   const onDelete = () => {
@@ -75,6 +82,8 @@ export function RecipeDetailScreen() {
           </Text>
         ) : null}
         <Text style={[styles.meta, { color: colors.muted }]}>
+          Autor: {getAuthorName(recipe.authorId)}
+          {' · '}
           {recipe.prepTimeMinutes != null ? `${recipe.prepTimeMinutes} min` : 'Sin tiempo'}
           {' · '}
           {recipe.servings != null

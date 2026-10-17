@@ -9,6 +9,7 @@ import { useColorScheme } from '@/components/use-color-scheme';
 import Colors from '@/constants/colors';
 import { LIMITS } from '@/constants/limits';
 import { useData } from '@/context/data-context';
+import { asRouteId } from '@/utils/params';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -21,7 +22,7 @@ export function RecipeFormScreen({ mode }: Props) {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
 
-  const recipeId = typeof params.id === 'string' ? params.id : undefined;
+  const recipeId = asRouteId(params.id) || undefined;
   const existing = useMemo(
     () => (recipeId ? getRecipeById(recipeId) : undefined),
     [recipeId, getRecipeById]

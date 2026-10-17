@@ -26,7 +26,7 @@ type Props = {
 export function RecipesListScreen({ mode }: Props) {
   const router = useRouter();
   const { user } = useAuth();
-  const { recipes, isLoading, refresh } = useData();
+  const { recipes, isLoading, refresh, getAuthorName } = useData();
   const scheme = useColorScheme();
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
@@ -39,15 +39,20 @@ export function RecipesListScreen({ mode }: Props) {
   );
 
   const data = useMemo(() => {
+    const safeRecipes = Array.isArray(recipes) ? recipes : [];
     if (mode === 'mine') {
-      return recipes.filter((recipe) => recipe.authorId === user?.id);
+      if (!user?.id) {
+        return [];
+      }
+      return safeRecipes.filter((recipe) => recipe?.authorId === user.id);
     }
-    return recipes;
+    return safeRecipes.filter((recipe) => Boolean(recipe?.id && recipe?.title));
   }, [mode, recipes, user?.id]);
 
   const renderItem = ({ item }: { item: Recipe }) => {
     const isMine = item.authorId === user?.id;
     const groupsCount = item.groupIds?.length ?? 0;
+    const authorLabel = getAuthorName(item.authorId);
 
     return (
       <Pressable
@@ -72,7 +77,7 @@ export function RecipesListScreen({ mode }: Props) {
         <Text style={[styles.meta, { color: colors.muted }]}>
           {(item.ingredients?.length ?? 0)} ingredientes
           {groupsCount > 0 ? ` · ${groupsCount} grupos` : ''}
-          {isMine ? ' · Tuya' : ''}
+          {mode === 'all' ? ` · ${isMine ? 'Tuya' : `De ${authorLabel}`}` : ''}
         </Text>
       </Pressable>
     );
@@ -95,12 +100,15 @@ export function RecipesListScreen({ mode }: Props) {
         </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           {mode === 'mine'
-            ? 'Solo las recetas que has creado'
-            : 'Todas las recetas, ordenadas alfabéticamente'}
+            ? 'Solo las recetas que has creado, en orden alfabético'
+            : 'Todas las recetas del dispositivo, en orden alfabético'}
+        </Text>
+        <Text style={[styles.count, { color: colors.muted }]}>
+          {data.length} {data.length === 1 ? 'receta' : 'recetas'}
         </Text>
         <UiButton
           label="Nueva receta"
-          onPress={() => router.push('/(app)/recipe/new')}
+          onPress={() => router.push('/(app)/recipe/new' as Href)}
         />
       </View>
 
@@ -120,7 +128,11 @@ export function RecipesListScreen({ mode }: Props) {
           ListEmptyComponent={
             <EmptyState
               title={mode === 'mine' ? 'Aún no tienes recetas' : 'Sin recetas'}
-              description="Crea tu primera receta para empezar."
+              description={
+                mode === 'mine'
+                  ? 'Crea una receta y aparecerá aquí. En Recetas verás también las de otros usuarios.'
+                  : 'Crea la primera receta para empezar a llenar el recetario.'
+              }
             />
           }
         />
@@ -140,6 +152,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
+  },
+  count: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   loader: { marginTop: 40 },
   card: {

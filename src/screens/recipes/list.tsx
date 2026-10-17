@@ -51,10 +51,16 @@ export function RecipesListScreen({ mode }: Props) {
 
   const data = useMemo(() => {
     const safeRecipes = Array.isArray(recipes) ? recipes : [];
+    // Recetas = catálogo de la app (cortesía). Mis recetas = solo las que creó el usuario.
     let list =
       mode === 'mine'
-        ? safeRecipes.filter((recipe) => recipe?.authorId === user?.id)
-        : safeRecipes.filter((recipe) => Boolean(recipe?.id && recipe?.title));
+        ? safeRecipes.filter(
+            (recipe) =>
+              recipe?.authorId === user?.id && !recipe?.isCourtesy
+          )
+        : safeRecipes.filter(
+            (recipe) => Boolean(recipe?.id && recipe?.title) && recipe.isCourtesy
+          );
 
     if (mode === 'all' && groupFilter === 'favorites' && user?.id) {
       list = list.filter((recipe) => isFavorite(user.id, recipe.id));
@@ -70,9 +76,9 @@ export function RecipesListScreen({ mode }: Props) {
   }, [mode, recipes, user?.id, groupFilter, query, isFavorite]);
 
   const renderItem = ({ item }: { item: Recipe }) => {
-    const isMine = item.authorId === user?.id;
+    const isMine = item.authorId === user?.id && !item.isCourtesy;
     const groupsCount = item.groupIds?.length ?? 0;
-    const authorLabel = getAuthorName(item.authorId);
+    const authorLabel = getAuthorName(item.authorId, item);
     const favorite = user ? isFavorite(user.id, item.id) : false;
 
     return (
@@ -158,8 +164,8 @@ export function RecipesListScreen({ mode }: Props) {
         </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           {mode === 'mine'
-            ? 'Solo las que has creado, ordenadas A-Z'
-            : 'Todas las del dispositivo, ordenadas A-Z'}
+            ? 'Solo las recetas que tú creaste, ordenadas A-Z'
+            : 'Recetas incluidas en la app, ordenadas A-Z'}
         </Text>
 
         <SearchField
@@ -232,7 +238,7 @@ export function RecipesListScreen({ mode }: Props) {
                   ? 'Prueba otro término o quita el filtro.'
                   : mode === 'mine'
                     ? 'Crea una receta y aparecerá aquí.'
-                    : 'Crea la primera receta o explora las de demostración.'
+                    : 'Aún no hay recetas de la app. Vuelve a iniciar sesión para cargarlas.'
               }
             />
           }

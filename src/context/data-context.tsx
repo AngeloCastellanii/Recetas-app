@@ -8,26 +8,23 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { Group, Recipe } from '@/types';
-import {
-  createGroup as createGroupInStore,
-  createRecipe as createRecipeInStore,
-  deleteGroupById,
-  deleteRecipeById,
-  getGroupsSorted,
-  getRecipesSorted,
-  getUsers,
-  isDuplicateGroupName,
-  isDuplicateRecipeTitle,
-  seedDemoDataIfNeeded,
-  syncRecipeGroupLinks,
-  unlinkRecipeFromGroup as unlinkRecipeFromGroupInStore,
-  unlinkRecipesFromAllGroups,
-  updateGroup as updateGroupInStore,
-  updateRecipe as updateRecipeInStore,
-} from '@/storage';
 import { useAuth } from '@/context/auth-context';
-import { createId } from '@/utils/id';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import {
+  createGroupRow,
+  createRecipeRow,
+  deleteGroupRow,
+  deleteRecipeRow,
+  fetchProfilesMap,
+  fetchRecipesAndGroups,
+  isDuplicateGroupLocal,
+  isDuplicateTitleLocal,
+  setRecipeGroupLink,
+  updateGroupRow,
+  updateRecipeRow,
+} from '@/services/api';
+import { seedCourtesyDataIfNeeded } from '@/services/demo-seed';
+import type { FieldErrors, Group, Recipe } from '@/types';
 import { normalizeText } from '@/utils/normalize';
 import {
   validateGroupDescription,
@@ -39,7 +36,6 @@ import {
   validateServings,
   validateStep,
 } from '@/utils/validation';
-import type { FieldErrors } from '@/types';
 
 type RecipeInput = {
   title: string;
@@ -61,7 +57,7 @@ type DataContextValue = {
   recipes: Recipe[];
   isLoading: boolean;
   refresh: () => Promise<void>;
-  getAuthorName: (authorId: string) => string;
+  getAuthorName: (authorId: string, recipe?: Recipe) => string;
   createGroup: (input: {
     name: string;
     description: string;
@@ -118,22 +114,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    await seedDemoDataIfNeeded();
-    const [nextGroups, nextRecipes, nextUsers] = await Promise.all([
-      getGroupsSorted(),
-      getRecipesSorted(),
-      getUsers(),
-    ]);
-    setGroups(Array.isArray(nextGroups) ? nextGroups : []);
-    setRecipes(Array.isArray(nextRecipes) ? nextRecipes : []);
-    const names: Record<string, string> = {};
-    for (const item of Array.isArray(nextUsers) ? nextUsers : []) {
-      if (item?.id && item?.name) {
-        names[item.id] = item.name;
-      }
+    if (!isSupabaseConfigured || !user) {
+      setGroups([]);
+      setRecipes([]);
+      setAuthorNames({});
+      return;
     }
+
+    await seedCourtesyDataIfNeeded(user.id);
+    const [{ recipes: nextRecipes, groups: nextGroups }, names] =
+      await Promise.all([fetchRecipesAndGroups(), fetchProfilesMap()]);
+    setRecipes(nextRecipes);
+    setGroups(nextGroups);
     setAuthorNames(names);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -147,6 +141,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setRecipes([]);
           setAuthorNames({});
         }
+      } catch (error) {
+        console.warn('[data]', error);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -177,8 +173,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const name = normalizeText(input.name);
-      const current = await getGroupsSorted();
-      if (!fieldErrors.name && isDuplicateGroupName(current, name)) {
+      if (!fieldErrors.name && isDuplicateGroupLocal(groups, name, user.id)) {
         fieldErrors.name = 'Ya existe un grupo con ese nombre.';
       }
 
@@ -190,21 +185,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      const now = new Date().toISOString();
-      const group = await createGroupInStore({
-        id: createId('group'),
+      const result = await createGroupRow({
         name,
         description: normalizeText(input.description),
-        recipeIds: [],
         ownerId: user.id,
-        createdAt: now,
-        updatedAt: now,
       });
-
+      if (!result.ok) {
+        return result;
+      }
       await refresh();
-      return { ok: true as const, group };
+      return result;
     },
-    [user, refresh]
+    [user, groups, refresh]
   );
 
   const updateGroup = useCallback(
@@ -233,7 +225,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const name = normalizeText(input.name);
-      if (!fieldErrors.name && isDuplicateGroupName(groups, name, input.id)) {
+      if (
+        !fieldErrors.name &&
+        isDuplicateGroupLocal(groups, name, user.id, input.id)
+      ) {
         fieldErrors.name = 'Ya existe un grupo con ese nombre.';
       }
 
@@ -245,15 +240,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      const group = await updateGroupInStore({
-        ...existing,
+      const result = await updateGroupRow({
+        id: input.id,
         name,
         description: normalizeText(input.description),
-        updatedAt: new Date().toISOString(),
       });
-
+      if (!result.ok) {
+        return result;
+      }
       await refresh();
-      return { ok: true as const, group };
+      return result;
     },
     [user, groups, refresh]
   );
@@ -272,13 +268,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: 'Solo el dueño puede borrar este grupo.' };
       }
 
-      try {
-        await deleteGroupById(id);
-        await refresh();
-        return { ok: true as const };
-      } catch {
-        return { ok: false as const, error: 'No se pudo borrar el grupo.' };
+      const result = await deleteGroupRow(id);
+      if (!result.ok) {
+        return result;
       }
+      await refresh();
+      return { ok: true as const };
     },
     [user, groups, refresh]
   );
@@ -300,13 +295,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      try {
-        await unlinkRecipeFromGroupInStore(groupId, recipeId);
-        await refresh();
-        return { ok: true as const };
-      } catch {
-        return { ok: false as const, error: 'No se pudo quitar la receta del grupo.' };
+      const result = await setRecipeGroupLink(recipeId, groupId, false);
+      if (!result.ok) {
+        return result;
       }
+      await refresh();
+      return { ok: true as const };
     },
     [user, groups, refresh]
   );
@@ -326,7 +320,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const title = normalizeText(input.title);
-      if (!fieldErrors.title && isDuplicateRecipeTitle(recipes, title, excludeId)) {
+      if (
+        !fieldErrors.title &&
+        user &&
+        isDuplicateTitleLocal(recipes, title, user.id, excludeId)
+      ) {
         fieldErrors.title = 'Ya existe una receta con ese título.';
       }
 
@@ -365,7 +363,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const validGroupIds = input.groupIds.filter((id) =>
-        groups.some((group) => group.id === id)
+        groups.some((group) => group.id === id && group.ownerId === user?.id)
       );
 
       return {
@@ -384,7 +382,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         },
       };
     },
-    [recipes, groups]
+    [recipes, groups, user?.id]
   );
 
   const createRecipe = useCallback(
@@ -398,18 +396,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return validated;
       }
 
-      const now = new Date().toISOString();
-      const recipe = await createRecipeInStore({
-        id: createId('recipe'),
-        authorId: user.id,
-        createdAt: now,
-        updatedAt: now,
+      const result = await createRecipeRow({
         ...validated.data,
+        authorId: user.id,
       });
-
-      await syncRecipeGroupLinks(recipe.id, [], recipe.groupIds);
+      if (!result.ok) {
+        return result;
+      }
       await refresh();
-      return { ok: true as const, recipe };
+      return result;
     },
     [user, validateRecipeInput, refresh]
   );
@@ -424,10 +419,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!existing) {
         return { ok: false as const, error: 'Receta no encontrada.' };
       }
-      if (existing.authorId !== user.id) {
+      if (existing.authorId !== user.id || existing.isCourtesy) {
         return {
           ok: false as const,
-          error: 'Solo el autor puede editar esta receta.',
+          error: existing.isCourtesy
+            ? 'Las recetas de la app no se pueden editar.'
+            : 'Solo el autor puede editar esta receta.',
         };
       }
 
@@ -436,19 +433,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return validated;
       }
 
-      const recipe = await updateRecipeInStore({
-        ...existing,
+      const result = await updateRecipeRow({
+        id: input.id,
         ...validated.data,
-        updatedAt: new Date().toISOString(),
+        authorId: user.id,
       });
-
-      await syncRecipeGroupLinks(
-        recipe.id,
-        existing.groupIds ?? [],
-        recipe.groupIds ?? []
-      );
+      if (!result.ok) {
+        return result;
+      }
       await refresh();
-      return { ok: true as const, recipe };
+      return result;
     },
     [user, recipes, validateRecipeInput, refresh]
   );
@@ -463,21 +457,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!existing) {
         return { ok: false as const, error: 'Receta no encontrada.' };
       }
-      if (existing.authorId !== user.id) {
+      if (existing.authorId !== user.id || existing.isCourtesy) {
         return {
           ok: false as const,
-          error: 'Solo el autor puede borrar esta receta.',
+          error: existing.isCourtesy
+            ? 'Las recetas de la app no se pueden borrar.'
+            : 'Solo el autor puede borrar esta receta.',
         };
       }
 
-      try {
-        await deleteRecipeById(id);
-        await unlinkRecipesFromAllGroups([id]);
-        await refresh();
-        return { ok: true as const };
-      } catch {
-        return { ok: false as const, error: 'No se pudo borrar la receta.' };
+      const result = await deleteRecipeRow(id);
+      if (!result.ok) {
+        return result;
       }
+      await refresh();
+      return { ok: true as const };
     },
     [user, recipes, refresh]
   );
@@ -504,33 +498,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: 'Receta no encontrada.' };
       }
 
-      const previous = recipe.groupIds ?? [];
-      const linked = previous.includes(groupId);
-      const next = linked
-        ? previous.filter((id) => id !== groupId)
-        : [...previous, groupId];
-
-      try {
-        await updateRecipeInStore({
-          ...recipe,
-          groupIds: next,
-          updatedAt: new Date().toISOString(),
-        });
-        await syncRecipeGroupLinks(recipeId, previous, next);
-        await refresh();
-        return { ok: true as const, linked: !linked };
-      } catch {
-        return {
-          ok: false as const,
-          error: 'No se pudo actualizar el grupo de la receta.',
-        };
+      const linked = (recipe.groupIds ?? []).includes(groupId);
+      const result = await setRecipeGroupLink(recipeId, groupId, !linked);
+      if (!result.ok) {
+        return result;
       }
+      await refresh();
+      return { ok: true as const, linked: !linked };
     },
     [user, groups, recipes, refresh]
   );
 
   const getAuthorName = useCallback(
-    (authorId: string) => {
+    (authorId: string, recipe?: Recipe) => {
+      if (recipe?.isCourtesy) {
+        return 'Cortesía de la App';
+      }
       if (!authorId) {
         return 'Usuario';
       }

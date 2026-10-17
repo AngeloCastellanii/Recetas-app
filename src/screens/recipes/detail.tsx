@@ -39,7 +39,9 @@ export function RecipeDetailScreen() {
 
   const recipe = recipeId ? getRecipeById(recipeId) : undefined;
   const linkedGroups = recipeId ? getGroupsForRecipe(recipeId) : [];
-  const isOwner = Boolean(recipe && user && recipe.authorId === user.id);
+  const isOwner = Boolean(
+    recipe && user && recipe.authorId === user.id && !recipe.isCourtesy
+  );
   const favorite = Boolean(user && recipe && isFavorite(user.id, recipe.id));
 
   const myGroups = useMemo(
@@ -126,7 +128,7 @@ export function RecipeDetailScreen() {
           </Text>
         ) : null}
         <Text style={[styles.meta, { color: colors.muted }]}>
-          Autor: {getAuthorName(recipe.authorId)}
+          Autor: {getAuthorName(recipe.authorId, recipe)}
           {' · '}
           {recipe.prepTimeMinutes != null ? `${recipe.prepTimeMinutes} min` : 'Sin tiempo'}
           {' · '}
